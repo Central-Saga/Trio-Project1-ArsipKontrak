@@ -11,8 +11,8 @@ RUN apk add --no-cache \
     git \
     postgresql-dev
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_pgsql zip gd
+# Install PHP extensions (wajib pdo_pgsql dan pgsql sesuai bot)
+RUN docker-php-ext-install pdo pdo_pgsql pgsql zip gd
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
