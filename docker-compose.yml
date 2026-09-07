@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: saga_laravel_app
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - .:/var/www
+        environment:
+            - DB_HOST=db
+            - DB_PORT=5432
+            - DB_DATABASE=sistem_arsip
+            - DB_USERNAME=saga
+            - DB_PASSWORD=secret123
+        depends_on:
+            - db
+        ports:
+            - "8000:8000"
+        command: php artisan serve --host=0.0.0.0 --port=8000
+
+    db:
+        image: postgres:15-alpine
+        container_name: saga_postgres_db
+        restart: unless-stopped
+        environment:
+            POSTGRES_DB: sistem_arsip
+            POSTGRES_USER: saga
+            POSTGRES_PASSWORD: secret123
+        ports:
+            - "5432:5432"
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+
+volumes:
+    postgres_data:
+        driver: local
