@@ -13,10 +13,10 @@ return new class extends Migration
     {
         Schema::create('document_versions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('document_id',)->constrained('documents')->onDelete('cascade')->onUpdate('cascade');
+            $table->foreignId('document_id')->constrained('documents')->onDelete('cascade')->onUpdate('cascade');
             $table->string('version_number', 20);
-            $table->string('file-Name', 200);
-            $table->string('file_[ath', 500);
+            $table->string('file_name', 200);
+            $table->string('file_path', 500);
             $table->char('file_hash', 64)->index();
             $table->unsignedBigInteger('file_size');
             $table->string('mime_type', 100);
@@ -24,6 +24,7 @@ return new class extends Migration
             $table->timestamp('encrypted_at')->nullable();
             $table->foreignId('uploaded_by')->constrained('users')->onDelete('restrict')->onUpdate('cascade');
             $table->text('notes')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

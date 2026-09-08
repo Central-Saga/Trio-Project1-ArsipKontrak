@@ -20,6 +20,11 @@ class ActivityLog extends Model
         'user_agent',
     ];
 
+    protected $casts = [
+        'user_id'   => 'integer',
+        'entity_id' => 'integer',
+    ];
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

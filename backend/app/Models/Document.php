@@ -7,31 +7,38 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Document extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'project_id',
-        'title',
         'document_number',
-        'type',
-        'description',
+        'document_name',
+        'document_type',
+        'partner',
+        'document_date',
         'effective_date',
         'expiry_date',
         'status',
+        'description',
         'created_by',
+    ];
+
+    protected $casts = [
+        'project_id'     => 'integer',
+        'created_by'     => 'integer',
+        'document_date'  => 'date',
+        'effective_date' => 'date',
+        'expiry_date'    => 'date',
+        'deleted_at'     => 'datetime',
     ];
 
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
-    }
-
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 
     public function versions(): HasMany
@@ -42,5 +49,10 @@ class Document extends Model
     public function latestVersion(): HasOne
     {
         return $this->hasOne(DocumentVersion::class)->latestOfMany();
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }
