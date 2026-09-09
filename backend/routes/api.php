@@ -1,13 +1,29 @@
 <?php
 
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentVersionController;
+use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
-Route::apiResource('documents', DocumentController::class);
+// Auth Public
+Route::post('/login', [AuthController::class, 'login']);
 
-// Endpoint Versioning & Secure File Delivery
-Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
-Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store']);
-Route::get('documents/{document}/versions/{version}/download', [DocumentVersionController::class, 'download']);
-Route::get('documents/{document}/versions/{version}/preview', [DocumentVersionController::class, 'preview']);
+// Auth Protected (Semua endpoint dokumen, versi, project, dan auth user diproteksi Sanctum)
+Route::middleware('auth:sanctum')->group(function () {
+    // Auth User
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Endpoint Dokumen & Arsip
+    Route::apiResource('documents', DocumentController::class);
+    Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
+    Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store']);
+    Route::get('documents/{document}/versions/{version}/download', [DocumentVersionController::class, 'download']);
+    Route::get('documents/{document}/versions/{version}/preview', [DocumentVersionController::class, 'preview']);
+
+    // List Project untuk Dropdown Upload
+    Route::get('/projects', function () {
+        return response()->json(Project::select('id', 'project_name', 'project_code')->get());
+    });
+});

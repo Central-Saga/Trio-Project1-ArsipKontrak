@@ -51,6 +51,14 @@ class Document extends Model
         return $this->hasOne(DocumentVersion::class)->latestOfMany();
     }
 
+    /**
+     * Relasi untuk mengambil versi aktif / versi terbaru dokumen.
+     */
+    public function activeVersion()
+    {
+        return $this->hasOne(DocumentVersion::class)->latestOfMany();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
