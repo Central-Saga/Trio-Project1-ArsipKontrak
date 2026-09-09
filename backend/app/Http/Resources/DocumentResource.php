@@ -13,9 +13,9 @@ class DocumentResource extends JsonResource
             'id'              => $this->id,
             'project_id'      => $this->project_id,
             'project'         => $this->whenLoaded('project', fn () => [
-                'id'           => $this->project->id,
-                'project_code' => $this->project->project_code,
-                'project_name' => $this->project->project_name,
+                'id'           => $this->project?->id,
+                'project_code' => $this->project?->project_code,
+                'project_name' => $this->project?->project_name,
             ]),
             'document_number' => $this->document_number,
             'document_name'   => $this->document_name,
@@ -27,11 +27,13 @@ class DocumentResource extends JsonResource
             'status'          => $this->status,
             'description'     => $this->description,
             'creator'         => $this->whenLoaded('creator', fn () => [
-                'id'    => $this->creator->id,
-                'name'  => $this->creator->name,
-                'email' => $this->creator->email,
+                'id'    => $this->creator?->id,
+                'name'  => $this->creator?->name,
+                'email' => $this->creator?->email,
             ]),
-            'current_version' => new DocumentVersionResource($this->whenLoaded('latestVersion')),
+            'current_version' => $this->relationLoaded('latestVersion') && $this->latestVersion
+                ? new DocumentVersionResource($this->latestVersion)
+                : null,
             'versions'        => DocumentVersionResource::collection($this->whenLoaded('versions')),
             'created_at'      => $this->created_at?->toIso8601String(),
             'updated_at'      => $this->updated_at?->toIso8601String(),
