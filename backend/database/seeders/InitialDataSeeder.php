@@ -12,11 +12,12 @@ class InitialDataSeeder extends Seeder
     public function run(): void
     {
         // 1. Akun Admin Awal
-        $admin = User::firstOrCreate(
+        User::updateOrCreate(
             ['email' => 'admin@example.com'],
             [
                 'name'     => 'Administrator',
                 'password' => Hash::make('password123'),
+                'role'     => 'admin',
             ]
         );
 

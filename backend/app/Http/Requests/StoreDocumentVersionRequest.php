@@ -17,6 +17,7 @@ class StoreDocumentVersionRequest extends FormRequest
             'version_number' => ['nullable', 'string', 'max:20'],
             'file'           => ['required', 'file', 'mimes:pdf', 'max:20480'], // Wajib PDF, max 20MB
             'notes'          => ['nullable', 'string', 'max:500'],
+            'secure_mode'    => ['nullable', 'boolean'],
         ];
     }
 

@@ -16,7 +16,11 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         // Auth User
         Route::get('/me', [AuthController::class, 'me']);
+        Route::get('/user', [AuthController::class, 'me']);
         Route::post('/logout', [AuthController::class, 'logout']);
+
+        // Endpoint Dashboard Statistics
+        Route::get('/dashboard/statistics', [DocumentController::class, 'statistics']);
 
         // Endpoint Dokumen & Arsip
         Route::apiResource('documents', DocumentController::class);
