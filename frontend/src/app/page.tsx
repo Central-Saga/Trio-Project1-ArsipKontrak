@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { BarChart3, CheckCircle2, FileText, Folder, LayoutDashboard, LogOut, Menu } from "lucide-react";
 import api from "@/lib/api";
 import { DocumentItem } from "@/types/document";
 import UploadDocumentModal from "@/components/UploadDocumentModal";
@@ -29,6 +30,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [isSecureMode, setIsSecureMode] = useState<boolean>(true);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
@@ -51,10 +57,10 @@ export default function DashboardPage() {
     description: "",
   });
 
-  const fetchDocuments = useCallback(async () => {
+  const fetchDocuments = useCallback(async (query = "") => {
     try {
       setLoading(true);
-      const response = await api.get("/documents");
+      const response = await api.get("/documents", { params: { search: query } });
       const data = response.data?.data || response.data || [];
       setDocuments(data);
     } catch (err: any) {
@@ -64,9 +70,15 @@ export default function DashboardPage() {
     }
   }, []);
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    fetchDocuments(query);
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
+    const storedUser = localStorage.getItem("user_data") || localStorage.getItem("user");
 
     if (!token) {
       router.push("/login");
@@ -84,6 +96,23 @@ export default function DashboardPage() {
     fetchDocuments();
   }, [router, fetchDocuments]);
 
+  useEffect(() => {
+    const handleOpenUploadModal = () => setShowUploadModal(true);
+    window.addEventListener("open-upload-modal", handleOpenUploadModal);
+    return () => window.removeEventListener("open-upload-modal", handleOpenUploadModal);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const confirmLogout = async () => {
     setLoggingOut(true);
     try {
@@ -93,6 +122,8 @@ export default function DashboardPage() {
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("user_data");
       setShowLogoutModal(false);
       setLoggingOut(false);
       router.push("/login");
@@ -128,7 +159,7 @@ export default function DashboardPage() {
     try {
       await api.put(`/documents/${editingDocument.id}`, editForm);
       setEditingDocument(null);
-      await fetchDocuments();
+      await fetchDocuments(searchQuery);
     } catch (err: any) {
       setEditError(err.response?.data?.message || "Gagal memperbarui dokumen.");
     } finally {
@@ -148,7 +179,7 @@ export default function DashboardPage() {
     try {
       await api.delete(`/documents/${deletingDocument.id}`);
       setDeletingDocument(null);
-      await fetchDocuments();
+      await fetchDocuments(searchQuery);
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal menghapus dokumen.");
     } finally {
@@ -158,9 +189,9 @@ export default function DashboardPage() {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-      draft: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-      expired: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+      active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      draft: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+      expired: "bg-rose-500/10 text-rose-400 border-rose-500/30",
       terminated: "bg-slate-800 text-slate-400 border-slate-700",
     };
     const dots: Record<string, string> = {
@@ -171,7 +202,7 @@ export default function DashboardPage() {
     };
     const normalizedStatus = status.toLowerCase();
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${colors[normalizedStatus] || colors.draft}`}>
+      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${colors[normalizedStatus] || colors.draft}`}>
         <span className={`h-1.5 w-1.5 rounded-full ${dots[normalizedStatus] || dots.draft} ${normalizedStatus === "active" ? "animate-pulse" : ""}`} />
         {status.toUpperCase()}
       </span>
@@ -191,42 +222,130 @@ export default function DashboardPage() {
   const activeDocuments = documents.filter((doc) => doc.status.toLowerCase() === "active").length;
   const draftDocuments = documents.filter((doc) => doc.status.toLowerCase() === "draft").length;
   const contractDocuments = documents.filter((doc) => doc.document_type.toLowerCase() === "contract").length;
+  const canManageDocuments = currentUser?.role === "admin";
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
-      <aside className="w-64 bg-slate-900/80 border-r border-slate-800 flex flex-col justify-between p-4 hidden md:flex shrink-0">
+      <aside className={`bg-slate-900/80 backdrop-blur-xl border-r border-emerald-500/20 flex flex-col justify-between p-4 hidden md:flex shrink-0 transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-64" : "w-20"}`}>
         <div>
-          <div className="flex items-center gap-2 px-2 mb-8">
-            <div className="bg-emerald-500 text-slate-950 font-bold p-1.5 rounded-lg flex items-center justify-center">&#128193;</div>
-            <span className="font-bold tracking-wider text-white">SAGA ARSIP</span>
+          <div className={`flex items-center mb-8 ${isSidebarOpen ? "justify-between" : "justify-center"}`}>
+            {isSidebarOpen && (
+              <div className="flex items-center gap-2 px-2 min-w-0">
+                <div className="bg-emerald-500 text-slate-950 font-bold p-1.5 rounded-lg flex items-center justify-center shrink-0">
+                  <Folder className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <span className="font-bold tracking-wider text-white truncate">SAGA ARSIP</span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen((isOpen) => !isOpen)}
+              aria-label={isSidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
+              title={isSidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
+              className="p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition"
+            >
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
           <nav className="space-y-1 text-sm" aria-label="Navigasi utama">
-            <a href="#" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20">
-              <span>&#128202;</span><span>Dashboard</span>
+            <a href="#" title="Dashboard" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20 ${isSidebarOpen ? "" : "justify-center"}`}>
+              <LayoutDashboard className="h-5 w-5 shrink-0" aria-hidden="true" />{isSidebarOpen && <span>Dashboard</span>}
             </a>
-            <a href="#arsip" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
-              <span>&#128196;</span><span>Kontrak &amp; MoU</span>
+            <a href="/contracts" title="Kontrak & MoU" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition ${isSidebarOpen ? "" : "justify-center"}`}>
+              <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />{isSidebarOpen && <span>Kontrak &amp; MoU</span>}
             </a>
-            <a href="#statistik" className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition">
-              <span>&#127970;</span><span>Ringkasan</span>
+            <a href="/statistics" title="Ringkasan" className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition ${isSidebarOpen ? "" : "justify-center"}`}>
+              <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />{isSidebarOpen && <span>Ringkasan</span>}
             </a>
           </nav>
         </div>
-        <div className="border-t border-slate-800 pt-4 text-sm">
-          <button onClick={() => setShowLogoutModal(true)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:bg-emerald-500/10 hover:text-emerald-400 transition text-left">
-            <span>&#128682;</span><span>Keluar</span>
+        <div className="border-t border-emerald-500/20 pt-4 text-sm">
+          <button onClick={() => setShowLogoutModal(true)} title="Keluar" aria-label="Keluar" className={`w-full flex items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-left text-rose-400 transition hover:bg-rose-500/20 ${isSidebarOpen ? "" : "justify-center"}`}>
+            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />{isSidebarOpen && <span>Keluar</span>}
           </button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-slate-900/70 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-visible">
+        <header className="relative z-50 h-16 overflow-visible bg-slate-900/70 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
           <div className="hidden sm:block w-96">
-            <input type="text" placeholder="Cari nomor dokumen atau rekanan..." className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Cari nomor dokumen atau rekanan..."
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+            />
           </div>
           <div className="flex items-center gap-4 ml-auto">
-            <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-medium">Secure Mode Active</span>
-            <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-xs">{currentUser?.name?.slice(0, 2).toUpperCase() || "AD"}</div>
+            <button
+              type="button"
+              onClick={() => setIsSecureMode((isSecure) => !isSecure)}
+              aria-pressed={isSecureMode}
+              title="Klik untuk mengubah mode keamanan"
+              className={`px-4 py-1.5 rounded-full border text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+                isSecureMode
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 focus:ring-emerald-400/60"
+                  : "border-yellow-500/30 bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20 focus:ring-yellow-400/60"
+              }`}
+            >
+              {isSecureMode ? "Secure Mode Active" : "Secure Mode Inactive"}
+            </button>
+            <div className="relative overflow-visible" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen((isOpen) => !isOpen)}
+                aria-expanded={isDropdownOpen}
+                aria-haspopup="menu"
+                aria-label="Buka menu profil"
+                className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-white text-xs hover:bg-emerald-500 transition shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+              >
+                {currentUser?.name?.slice(0, 2).toUpperCase() || "AD"}
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 z-[99] mt-2 w-52 rounded-xl border border-slate-800 bg-slate-900 py-2 text-white shadow-xl" role="menu">
+                  <div className="px-4 py-2 border-b border-slate-800">
+                    <p className="text-xs text-slate-400">Masuk sebagai</p>
+                    <p className="text-sm font-semibold truncate">{currentUser?.name || "Administrator"}</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      router.push("/profile");
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  >
+                    Profil Saya
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      router.push("/contracts");
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                  >
+                    Kontrak &amp; MoU
+                  </button>
+                  <div className="border-t border-slate-800 my-1" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setShowLogoutModal(true);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-slate-800 hover:text-rose-300 transition font-medium"
+                  >
+                    Keluar
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -247,61 +366,56 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <button
-              onClick={() => setShowLogoutModal(true)}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-emerald-500/10 hover:text-emerald-400 text-slate-300 text-xs font-medium rounded-lg transition border border-slate-700 hover:border-emerald-500/20"
-            >
-              Keluar
-            </button>
-
-            <button
-              onClick={() => setShowUploadModal(true)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-lg shadow-emerald-900/20 transition"
-            >
-              + Unggah Dokumen Baru
-            </button>
+            {canManageDocuments && (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-upload-modal"))}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-xl shadow-lg shadow-emerald-900/20 transition"
+              >
+                + Unggah Dokumen Baru
+              </button>
+            )}
           </div>
         </div>
 
         {/* Ringkasan Dokumen */}
         <div id="statistik" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-5">
-            <div className="flex items-center justify-between">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl" />
+            <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Total Arsip</p>
-                <p className="mt-1 text-2xl font-bold text-white">{documents.length}</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Arsip</p>
+                <p className="mt-1 text-3xl font-extrabold text-white">{documents.length}</p>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 3.5h7l3 3V20.5H7a2 2 0 01-2-2v-13a2 2 0 012-2zM14 3.5v4h4M8.5 12h7M8.5 16h7" />
-                </svg>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                <Folder className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
           </div>
-          <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-5">
-            <div className="flex items-center justify-between">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-500/10 blur-2xl" />
+            <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Dokumen Aktif</p>
-                <p className="mt-1 text-2xl font-bold text-white">{activeDocuments}</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Dokumen Aktif</p>
+                <p className="mt-1 text-3xl font-extrabold text-white">{activeDocuments}</p>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5-1a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
+                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
           </div>
-          <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-5">
-            <div className="flex items-center justify-between">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+            <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
+            <div className="relative z-10 flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium text-slate-400">Total Kontrak</p>
-                <p className="mt-1 text-2xl font-bold text-white">{contractDocuments}</p>
-                <p className="text-[11px] text-slate-500">{draftDocuments} masih draft</p>
+                <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Kontrak</p>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <p className="text-3xl font-extrabold text-white">{contractDocuments}</p>
+                  <span className="text-xs font-medium text-amber-400">({draftDocuments} draft)</span>
+                </div>
               </div>
-              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 4.5h6M9 3h6a1.5 1.5 0 011.5 1.5v1.25A3.25 3.25 0 0113.25 9h-2.5A3.25 3.25 0 017.5 5.75V4.5A1.5 1.5 0 019 3zM6 9h12v10.5A1.5 1.5 0 0116.5 21h-9A1.5 1.5 0 016 19.5V9z" />
-                </svg>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-400">
+                <FileText className="h-5 w-5" aria-hidden="true" />
               </div>
             </div>
           </div>
@@ -315,16 +429,17 @@ export default function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-8 text-center text-slate-400 text-sm">Memuat data dokumen dari server...</div>
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b0f19]/80 p-8 text-center text-sm text-slate-400 shadow-2xl backdrop-blur-xl">Memuat data dokumen dari server...</div>
           ) : error ? (
-            <div className="bg-slate-900/70 rounded-2xl border border-rose-500/20 shadow-xl p-8 text-center text-rose-400 text-sm">Terjadi kesalahan: {error}</div>
+            <div className="relative overflow-hidden rounded-2xl border border-rose-500/20 bg-[#0b0f19]/80 p-8 text-center text-sm text-rose-400 shadow-2xl backdrop-blur-xl">Terjadi kesalahan: {error}</div>
           ) : documents.length === 0 ? (
-            <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-8 text-center text-slate-500 text-sm">Belum ada arsip dokumen yang tersimpan di database.</div>
+            <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b0f19]/80 p-8 text-center text-sm text-slate-500 shadow-2xl backdrop-blur-xl">Belum ada arsip dokumen yang tersimpan di database.</div>
           ) : (
             <div className="space-y-2">
               {documents.map((doc) => (
-                <div key={doc.id} className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-3.5 hover:bg-slate-800/70 hover:border-emerald-500/20 transition">
-                  <div className="grid grid-cols-1 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto] gap-3 items-center">
+                <div key={doc.id} className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b0f19]/80 p-3.5 shadow-2xl backdrop-blur-xl transition hover:border-emerald-400/40 hover:bg-[#0b0f19]/90">
+                  <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-emerald-600/15 blur-3xl" />
+                  <div className="relative z-10 grid grid-cols-1 items-center gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto_auto]">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-slate-200 truncate">{doc.document_name}</div>
                       <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono mt-0.5">
@@ -355,20 +470,24 @@ export default function DashboardPage() {
                         >
                           Detail
                         </button>
-                        <button
-                          onClick={() => handleEdit(doc)}
-                          className="px-2.5 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-medium text-[11px] rounded-lg border border-sky-500/20 transition"
-                          title="Edit Dokumen"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(doc)}
-                          className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-medium text-[11px] rounded-lg border border-rose-500/20 transition"
-                          title="Hapus Dokumen"
-                        >
-                          Hapus
-                        </button>
+                        {canManageDocuments && (
+                          <>
+                            <button
+                              onClick={() => handleEdit(doc)}
+                              className="px-2.5 py-1 bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 font-medium text-[11px] rounded-lg border border-sky-500/20 transition"
+                              title="Edit Dokumen"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDelete(doc)}
+                              className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 font-medium text-[11px] rounded-lg border border-rose-500/20 transition"
+                              title="Hapus Dokumen"
+                            >
+                              Hapus
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -453,7 +572,7 @@ export default function DashboardPage() {
       )}
 
       {/* Modal Upload Dokumen */}
-      <UploadDocumentModal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} onSuccess={fetchDocuments} />
+      <UploadDocumentModal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)} onSuccess={() => fetchDocuments(searchQuery)} secureMode={isSecureMode} />
 
       {/* Modal Konfirmasi Hapus */}
       {deletingDocument && (

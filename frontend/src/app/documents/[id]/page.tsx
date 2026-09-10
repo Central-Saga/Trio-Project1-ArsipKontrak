@@ -38,6 +38,13 @@ interface DocumentVersion {
   };
 }
 
+interface CurrentUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const documentId = resolvedParams.id;
@@ -45,6 +52,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const [document, setDocument] = useState<DocumentDetail | null>(null);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
+  const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +63,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingVersion, setUploadingVersion] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [downloadingVersionId, setDownloadingVersionId] = useState<number | null>(null);
 
   const fetchDocumentData = useCallback(async () => {
     try {
@@ -73,11 +82,25 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   }, [documentId]);
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("user_data") || localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+
     fetchDocumentData();
   }, [fetchDocumentData]);
 
   const handleUploadVersion = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (user?.role !== "admin") {
+      setUploadError("Hanya administrator yang dapat mengunggah versi baru.");
+      return;
+    }
+
     if (!selectedFile) {
       setUploadError("Pilih file PDF adendum/versi baru.");
       return;
@@ -103,6 +126,28 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       setUploadError(err.response?.data?.message || "Gagal mengunggah versi baru.");
     } finally {
       setUploadingVersion(false);
+    }
+  };
+
+  const handleDownloadVersion = async (version: DocumentVersion) => {
+    setDownloadingVersionId(version.id);
+
+    try {
+      const response = await api.get(`/documents/${documentId}/versions/${version.id}/download`, {
+        responseType: "blob",
+      });
+      const downloadUrl = URL.createObjectURL(response.data);
+      const link = globalThis.document.createElement("a");
+      link.href = downloadUrl;
+      link.download = version.file_name;
+      globalThis.document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Gagal mengunduh file dokumen.");
+    } finally {
+      setDownloadingVersionId(null);
     }
   };
 
@@ -153,12 +198,14 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
           >
             &larr; Kembali ke Dashboard
           </button>
-          <button
-            onClick={() => setShowNewVersionModal(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg shadow-sm transition"
-          >
-            + Unggah Versi Baru / Adendum
-          </button>
+          {user?.role === "admin" && (
+            <button
+              onClick={() => setShowNewVersionModal(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg shadow-sm transition"
+            >
+              + Unggah Versi Baru / Adendum
+            </button>
+          )}
         </div>
 
         {/* Kartu Informasi Utama */}
@@ -252,14 +299,14 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                     <td className="px-6 py-4 text-slate-400">{ver.notes || "-"}</td>
                     <td className="px-6 py-4 text-slate-300">{ver.uploader?.name || "Admin"}</td>
                     <td className="px-6 py-4 text-right">
-                      <a
-                        href={`http://localhost:8000/api/documents/${documentId}/versions/${ver.id}/download`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadVersion(ver)}
+                        disabled={downloadingVersionId === ver.id}
                         className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-medium rounded-lg border border-emerald-500/20 transition"
                       >
-                        Unduh PDF
-                      </a>
+                        {downloadingVersionId === ver.id ? "Mengunduh..." : "Unduh PDF"}
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -270,7 +317,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       </div>
 
       {/* Modal Unggah Versi Baru */}
-      {showNewVersionModal && (
+      {showNewVersionModal && user?.role === "admin" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-800">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">

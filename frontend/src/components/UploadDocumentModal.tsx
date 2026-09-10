@@ -13,9 +13,10 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  secureMode: boolean;
 }
 
-export default function UploadDocumentModal({ isOpen, onClose, onSuccess }: Props) {
+export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secureMode }: Props) {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +94,7 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess }: Prop
       payload.append(key, val);
     });
     payload.append("file", selectedFile);
+    payload.append("secure_mode", secureMode ? "1" : "0");
 
     try {
       await api.post("/documents", payload, {
@@ -167,9 +169,6 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess }: Prop
               >
                 <option value="contract">Contract</option>
                 <option value="mou">MoU</option>
-                <option value="adendum">Adendum</option>
-                <option value="agreement">Agreement</option>
-                <option value="supporting">Supporting</option>
               </select>
             </div>
           </div>
