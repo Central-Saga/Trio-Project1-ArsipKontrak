@@ -67,8 +67,6 @@ class DocumentController extends Controller
      */
     public function store(Request $request)
     {
-        $this->ensureAdmin($request);
-
         $validated = $request->validate([
             'document_number' => 'required|string|unique:documents,document_number',
             'document_name'   => 'required|string|max:255',
@@ -83,7 +81,6 @@ class DocumentController extends Controller
             'file'            => 'required|file|mimes:pdf|max:20480', // Maksimal 20MB PDF
             'version_number'  => 'nullable|string|max:50',
             'notes'           => 'nullable|string',
-            'secure_mode'     => 'nullable|boolean',
         ]);
 
         try {
@@ -104,28 +101,22 @@ class DocumentController extends Controller
                 'created_by'      => $request->user()->id,
             ]);
 
-            // 2. Simpan file terenkripsi atau biasa sesuai mode keamanan yang dipilih.
+            // 2. Enkripsi file secara manual (AES-256-CBC) sebelum disimpan ke disk
             $file = $request->file('file');
             $originalName = $file->getClientOriginalName();
-            $isSecureMode = $request->boolean('secure_mode', true);
-            $encryptedAt = null;
+            $fileContent = file_get_contents($file->getRealPath());
 
-            if ($isSecureMode) {
-                $fileContent = file_get_contents($file->getRealPath());
-                $encryptionKey = config('app.key');
-                if (str_starts_with($encryptionKey, 'base64:')) {
-                    $encryptionKey = base64_decode(substr($encryptionKey, 7));
-                }
-
-                $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-                $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-                $payload = base64_encode($iv . $encryptedContent);
-                $path = 'documents/contracts/' . uniqid() . '.enc';
-                Storage::disk('private_encrypted')->put($path, $payload);
-                $encryptedAt = now();
-            } else {
-                $path = $file->store('documents/contracts', 'private_encrypted');
+            $encryptionKey = config('app.key');
+            if (str_starts_with($encryptionKey, 'base64:')) {
+                $encryptionKey = base64_decode(substr($encryptionKey, 7));
             }
+
+            $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+            $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
+            $payload = base64_encode($iv . $encryptedContent);
+
+            $path = 'documents/contracts/' . uniqid() . '.enc';
+            Storage::disk('private_encrypted')->put($path, $payload);
 
             // 3. Hitung SHA-256 hash dari file asli untuk integritas berkas
             $fileHash = hash_file('sha256', $file->getRealPath());
@@ -139,7 +130,6 @@ class DocumentController extends Controller
                 'file_size'      => $file->getSize(),
                 'file_hash'      => $fileHash,
                 'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => $encryptedAt,
                 'notes'          => $validated['notes'] ?? 'Dokumen awal diunggah.',
                 'uploaded_by'    => $request->user()->id,
             ]);
@@ -147,9 +137,7 @@ class DocumentController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => $isSecureMode
-                    ? 'Dokumen kontrak/MoU berhasil diunggah dan diamankan dengan enkripsi penuh.'
-                    : 'Dokumen kontrak/MoU berhasil diunggah tanpa enkripsi.',
+                'message' => 'Dokumen kontrak/MoU berhasil diunggah dan diamankan dengan enkripsi penuh.',
                 'data'    => new DocumentResource($document->load(['project', 'creator', 'versions'])),
             ], 201);
 
@@ -176,8 +164,6 @@ class DocumentController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $this->ensureAdmin($request);
-
         $document = Document::findOrFail($id);
 
         $validated = $request->validate([
@@ -206,8 +192,6 @@ class DocumentController extends Controller
      */
     public function destroy(string $id)
     {
-        $this->ensureAdmin(request());
-
         $document = Document::with('versions')->findOrFail($id);
 
         try {
@@ -254,38 +238,29 @@ class DocumentController extends Controller
      */
     public function storeVersion(Request $request, string $id)
     {
-        $this->ensureAdmin($request);
-
         $document = Document::findOrFail($id);
 
         $validated = $request->validate([
             'version_number' => 'required|string|max:50',
             'file'           => 'required|file|mimes:pdf|max:20480',
             'notes'          => 'nullable|string',
-            'secure_mode'    => 'nullable|boolean',
         ]);
 
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();
-        $isSecureMode = $request->boolean('secure_mode', true);
-        $encryptedAt = null;
+        $fileContent = file_get_contents($file->getRealPath());
 
-        if ($isSecureMode) {
-            $fileContent = file_get_contents($file->getRealPath());
-            $encryptionKey = config('app.key');
-            if (str_starts_with($encryptionKey, 'base64:')) {
-                $encryptionKey = base64_decode(substr($encryptionKey, 7));
-            }
-
-            $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-            $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-            $payload = base64_encode($iv . $encryptedContent);
-            $path = 'documents/contracts/' . uniqid() . '.enc';
-            Storage::disk('private_encrypted')->put($path, $payload);
-            $encryptedAt = now();
-        } else {
-            $path = $file->store('documents/contracts', 'private_encrypted');
+        $encryptionKey = config('app.key');
+        if (str_starts_with($encryptionKey, 'base64:')) {
+            $encryptionKey = base64_decode(substr($encryptionKey, 7));
         }
+
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+        $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
+        $payload = base64_encode($iv . $encryptedContent);
+
+        $path = 'documents/contracts/' . uniqid() . '.enc';
+        Storage::disk('private_encrypted')->put($path, $payload);
 
         $fileHash = hash_file('sha256', $file->getRealPath());
 
@@ -297,15 +272,12 @@ class DocumentController extends Controller
             'file_size'      => $file->getSize(),
             'file_hash'      => $fileHash,
             'mime_type'      => $file->getMimeType(),
-            'encrypted_at'   => $encryptedAt,
             'notes'          => $validated['notes'] ?? null,
             'uploaded_by'    => $request->user()->id,
         ]);
 
         return response()->json([
-            'message' => $isSecureMode
-                ? 'Versi baru / adendum dokumen berhasil diunggah dengan enkripsi penuh.'
-                : 'Versi baru / adendum dokumen berhasil diunggah tanpa enkripsi.',
+            'message' => 'Versi baru / adendum dokumen berhasil diunggah dengan enkripsi penuh.',
             'data'    => new DocumentVersionResource($version->load('uploader')),
         ], 201);
     }
@@ -340,10 +312,5 @@ class DocumentController extends Controller
         return response()->streamDownload(function () use ($decryptedContent) {
             echo $decryptedContent;
         }, $version->file_name);
-    }
-
-    private function ensureAdmin(Request $request): void
-    {
-        abort_unless($request->user()?->role === 'admin', 403, 'Akses hanya tersedia untuk administrator.');
     }
 }

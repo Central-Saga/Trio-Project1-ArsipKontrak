@@ -16,7 +16,12 @@ interface Props {
   secureMode: boolean;
 }
 
-export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secureMode }: Props) {
+export default function UploadDocumentModal({
+  isOpen,
+  onClose,
+  onSuccess,
+  secureMode,
+}: Props) {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -45,7 +50,10 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
           const res = await api.get("/projects");
           setProjects(res.data);
           if (res.data.length > 0) {
-            setFormData((prev) => ({ ...prev, project_id: res.data[0].id.toString() }));
+            setFormData((prev) => ({
+              ...prev,
+              project_id: res.data[0].id.toString(),
+            }));
           }
         } catch {
           // fallback jika fetch gagal
@@ -59,7 +67,11 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
 
   if (!isOpen) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -103,9 +115,20 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      const response = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }).response;
-      const firstValidationError = response?.data?.errors ? Object.values(response.data.errors)[0]?.[0] : undefined;
-      const msg = response?.data?.message || firstValidationError || "Gagal mengunggah dokumen.";
+      const response = (
+        err as {
+          response?: {
+            data?: { message?: string; errors?: Record<string, string[]> };
+          };
+        }
+      ).response;
+      const firstValidationError = response?.data?.errors
+        ? Object.values(response.data.errors)[0]?.[0]
+        : undefined;
+      const msg =
+        response?.data?.message ||
+        firstValidationError ||
+        "Gagal mengunggah dokumen.";
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
@@ -117,8 +140,12 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
       <div className="bg-slate-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[calc(100vh-2rem)] my-4 overflow-hidden border border-slate-800 flex flex-col">
         <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
           <div>
-            <h3 className="text-lg font-semibold tracking-wide">Unggah Dokumen Baru</h3>
-            <p className="text-xs text-emerald-100">Lengkapi data arsip kontrak/MoU beserta berkas PDF terenkripsi</p>
+            <h3 className="text-lg font-semibold tracking-wide">
+              Unggah Dokumen Baru
+            </h3>
+            <p className="text-xs text-emerald-100">
+              Lengkapi data arsip kontrak/MoU beserta berkas PDF terenkripsi
+            </p>
           </div>
           <button
             type="button"
@@ -139,7 +166,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pilih Project</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Pilih Project
+              </label>
               <select
                 name="project_id"
                 required
@@ -160,7 +189,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tipe Dokumen</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Tipe Dokumen
+              </label>
               <select
                 name="document_type"
                 value={formData.document_type}
@@ -175,7 +206,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nomor Dokumen</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Nomor Dokumen
+              </label>
               <input
                 type="text"
                 name="document_number"
@@ -188,7 +221,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Pihak Rekanan (Partner)</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Pihak Rekanan (Partner)
+              </label>
               <input
                 type="text"
                 name="partner"
@@ -202,7 +237,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Nama Dokumen</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Nama Dokumen
+            </label>
             <input
               type="text"
               name="document_name"
@@ -216,7 +253,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tanggal Dokumen</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Tanggal Dokumen
+              </label>
               <input
                 type="date"
                 name="document_date"
@@ -227,7 +266,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tanggal Efektif</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Tanggal Efektif
+              </label>
               <input
                 type="date"
                 name="effective_date"
@@ -238,7 +279,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Tanggal Berakhir</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Tanggal Berakhir
+              </label>
               <input
                 type="date"
                 name="expiry_date"
@@ -251,26 +294,51 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Berkas PDF Dokumen (Max 20MB)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Berkas PDF Dokumen (Max 20MB)
+            </label>
             <div className="mt-1 flex justify-center px-6 pt-3 pb-4 border-2 border-slate-700 border-dashed rounded-xl hover:border-emerald-500 transition-colors bg-slate-800/40">
               <div className="space-y-1 text-center">
-                <svg className="mx-auto h-9 w-9 text-slate-500" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <svg
+                  className="mx-auto h-9 w-9 text-slate-500"
+                  stroke="currentColor"
+                  fill="none"
+                  viewBox="0 0 48 48"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <div className="flex text-sm text-slate-300 justify-center">
                   <label className="relative cursor-pointer rounded-md font-medium text-emerald-700 hover:text-emerald-800 focus-within:outline-none">
-                    <span>{selectedFile ? selectedFile.name : "Unggah berkas"}</span>
-                    <input type="file" className="sr-only" accept=".pdf" required={!selectedFile} onChange={handleFileChange} />
+                    <span>
+                      {selectedFile ? selectedFile.name : "Unggah berkas"}
+                    </span>
+                    <input
+                      type="file"
+                      className="sr-only"
+                      accept=".pdf"
+                      required={!selectedFile}
+                      onChange={handleFileChange}
+                    />
                   </label>
                   {!selectedFile && <p className="pl-1">atau seret ke sini</p>}
                 </div>
-                <p className="text-xs text-slate-500">PDF hingga 20MB (Terenkripsi Aman)</p>
+                <p className="text-xs text-slate-500">
+                  PDF hingga 20MB (Terenkripsi Aman)
+                </p>
               </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Deskripsi / Ringkasan (Opsional)</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Deskripsi / Ringkasan (Opsional)
+            </label>
             <textarea
               name="description"
               rows={2}
@@ -295,7 +363,9 @@ export default function UploadDocumentModal({ isOpen, onClose, onSuccess, secure
               disabled={submitting}
               className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-emerald-900/20 disabled:opacity-50"
             >
-              {submitting ? "Mengunggah & Menghitung Hash..." : "Unggah & Simpan"}
+              {submitting
+                ? "Mengunggah & Menghitung Hash..."
+                : "Unggah & Simpan"}
             </button>
           </div>
         </form>
