@@ -7,6 +7,8 @@ use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Http\Resources\DocumentResource;
 use App\Http\Resources\DocumentVersionResource;
+use App\Http\Requests\StoreDocumentRequest;
+use App\Http\Requests\StoreDocumentVersionRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +34,7 @@ class DocumentController extends Controller
             ]
         ]);
     }
+
     /**
      * Tampilkan daftar seluruh dokumen arsip.
      */
@@ -65,28 +68,15 @@ class DocumentController extends Controller
     /**
      * Simpan dokumen baru beserta file versi pertamanya (terenkripsi manual AES-256).
      */
-    public function store(Request $request)
+    public function store(StoreDocumentRequest $request)
     {
-        $validated = $request->validate([
-            'document_number' => 'required|string|unique:documents,document_number',
-            'document_name'   => 'required|string|max:255',
-            'document_type'   => 'required|in:contract,mou,addendum,other',
-            'partner'         => 'required|string|max:255',
-            'document_date'   => 'required|date',
-            'effective_date'  => 'required|date',
-            'expiry_date'     => 'required|date|after_or_equal:effective_date',
-            'status'          => 'required|in:draft,active,expired,terminated',
-            'description'     => 'nullable|string',
-            'project_id'      => 'nullable|exists:projects,id',
-            'file'            => 'required|file|mimes:pdf|max:20480', // Maksimal 20MB PDF
-            'version_number'  => 'nullable|string|max:50',
-            'notes'           => 'nullable|string',
-        ]);
-
         try {
             DB::beginTransaction();
 
-            // 1. Simpan data utama dokumen
+            // 1. Ambil data yang sudah bersih dan lolos validasi dari StoreDocumentRequest
+            $validated = $request->validated();
+
+            // 2. Simpan data utama dokumen
             $document = Document::create([
                 'document_number' => $validated['document_number'],
                 'document_name'   => $validated['document_name'],
@@ -101,7 +91,7 @@ class DocumentController extends Controller
                 'created_by'      => $request->user()->id,
             ]);
 
-            // 2. Enkripsi file secara manual (AES-256-CBC) sebelum disimpan ke disk
+            // 3. Enkripsi file secara manual (AES-256-CBC) sebelum disimpan ke disk
             $file = $request->file('file');
             $originalName = $file->getClientOriginalName();
             $fileContent = file_get_contents($file->getRealPath());
@@ -118,10 +108,10 @@ class DocumentController extends Controller
             $path = 'documents/contracts/' . uniqid() . '.enc';
             Storage::disk('private_encrypted')->put($path, $payload);
 
-            // 3. Hitung SHA-256 hash dari file asli untuk integritas berkas
+            // 4. Hitung SHA-256 hash dari file asli untuk integritas berkas
             $fileHash = hash_file('sha256', $file->getRealPath());
 
-            // 4. Buat record versi dokumen (v1.0 default)
+            // 5. Buat record versi dokumen (v1.0 default)
             DocumentVersion::create([
                 'document_id'    => $document->id,
                 'version_number' => $validated['version_number'] ?? 'v1.0',
@@ -236,15 +226,11 @@ class DocumentController extends Controller
     /**
      * Unggah versi baru / adendum untuk dokumen yang sudah ada (dengan enkripsi manual).
      */
-    public function storeVersion(Request $request, string $id)
+    public function storeVersion(StoreDocumentVersionRequest $request, string $id)
     {
         $document = Document::findOrFail($id);
 
-        $validated = $request->validate([
-            'version_number' => 'required|string|max:50',
-            'file'           => 'required|file|mimes:pdf|max:20480',
-            'notes'          => 'nullable|string',
-        ]);
+        $validated = $request->validated();
 
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();

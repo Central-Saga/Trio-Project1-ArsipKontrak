@@ -60,7 +60,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0f19] px-6 py-6 text-slate-100 md:px-10 md:py-8">
+    <main className="min-h-screen bg-transparent px-6 py-6 text-slate-100 md:px-10 md:py-8">
       <div className="mx-auto max-w-2xl">
         <button
           type="button"
@@ -90,14 +90,14 @@ export default function ProfilePage() {
           <div className="relative z-10 space-y-4">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Informasi Akun</h2>
             <div className="grid grid-cols-1 gap-3">
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-[#0b1f14]/80 p-4 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                   <Mail className="h-5 w-5 text-emerald-400" aria-hidden="true" />
                   <span className="text-sm text-slate-300">Alamat Email</span>
                 </div>
                 <span className="truncate text-sm font-medium text-white">{user.email}</span>
               </div>
-              <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-emerald-500/20 bg-[#0b1f14]/80 p-4 backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                   <KeyRound className="h-5 w-5 text-emerald-400" aria-hidden="true" />
                   <span className="text-sm text-slate-300">ID Pengguna</span>

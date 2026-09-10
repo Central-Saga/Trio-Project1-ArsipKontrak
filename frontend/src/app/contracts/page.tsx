@@ -114,8 +114,8 @@ export default function ContractsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-emerald-500/20 bg-slate-900/90 p-4 backdrop-blur-xl transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}>
+    <div className="flex min-h-screen bg-transparent text-slate-100">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-emerald-500/20 bg-[#07150e]/80 p-4 backdrop-blur-xl transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}>
         <div>
           <div className={`mb-8 flex items-center ${isSidebarOpen ? "justify-between" : "justify-center"}`}>
             {isSidebarOpen && (
@@ -181,7 +181,7 @@ export default function ContractsPage() {
       </aside>
 
       <div className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}>
-        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-slate-800 bg-slate-900/70 px-6 backdrop-blur-xl">
+        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-emerald-500/20 bg-[#0b1f14]/65 px-6 backdrop-blur-md">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">SAGA ARSIP</p>
             <p className="text-xs text-slate-500">Manajemen dokumen legal</p>
@@ -199,9 +199,9 @@ export default function ContractsPage() {
               {user?.name?.slice(0, 2).toUpperCase() || "AD"}
             </button>
             {isProfileMenuOpen && (
-              <div className="absolute right-0 top-11 z-[99] w-64 rounded-2xl border border-emerald-500/30 bg-slate-900 py-2 text-white shadow-2xl backdrop-blur-xl" role="menu">
-                <div className="border-b border-slate-800 px-4 py-3">
-                  <p className="text-xs text-slate-400">Masuk sebagai</p>
+              <div className="absolute right-0 top-11 z-[99] w-56 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/95 py-2 text-emerald-100 shadow-2xl backdrop-blur-xl" role="menu">
+                <div className="mb-1 border-b border-emerald-500/10 px-4 py-3">
+                  <p className="text-xs text-emerald-400/60">Masuk sebagai</p>
                   <p className="truncate text-sm font-bold">{user?.name || "Administrator"}</p>
                 </div>
                 <button type="button" role="menuitem" onClick={() => { setIsProfileMenuOpen(false); router.push("/profile"); }} className="w-full px-4 py-2.5 text-left text-sm text-slate-300 transition hover:bg-emerald-500/10 hover:text-emerald-400">Profil Saya</button>
@@ -254,7 +254,7 @@ export default function ContractsPage() {
               className={`rounded-xl border px-4 py-2 text-sm font-medium capitalize transition ${
                 activeTab === tab
                   ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-inner"
-                  : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200"
+                  : "border-emerald-500/20 bg-[#0b1f14]/60 text-emerald-300/60 hover:text-emerald-200"
               }`}
             >
               {tab === "all" ? "Semua Dokumen" : tab === "mou" ? "MoU" : "Kontrak"}
@@ -278,7 +278,7 @@ export default function ContractsPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[780px] text-left">
                 <thead>
-                  <tr className="border-b border-emerald-500/20 bg-slate-900/40 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <tr className="border-b border-emerald-500/20 bg-[#0b1f14]/60 text-xs font-semibold uppercase tracking-wider text-slate-400">
                     <th className="p-4">Nomor / Judul Dokumen</th>
                     <th className="p-4">Tipe</th>
                     <th className="p-4">Pihak Rekanan</th>
@@ -292,13 +292,13 @@ export default function ContractsPage() {
                     filteredDocuments.map((document) => {
                       const status = document.status.toLowerCase();
                       return (
-                        <tr key={document.id} className="transition hover:bg-slate-900/30">
+                        <tr key={document.id} className="transition hover:bg-emerald-500/5">
                           <td className="p-4">
                             <div className="font-semibold text-white">{document.document_name}</div>
                             <div className="text-xs text-emerald-400/80">{document.document_number}</div>
                           </td>
                           <td className="p-4">
-                            <span className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-medium capitalize text-slate-300">
+                            <span className="rounded-lg border border-emerald-500/20 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium capitalize text-emerald-100/80">
                               {document.document_type}
                             </span>
                           </td>
@@ -315,7 +315,7 @@ export default function ContractsPage() {
                             <button
                               type="button"
                               onClick={() => router.push(`/documents/${document.id}`)}
-                              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:border-emerald-500 hover:bg-emerald-600 hover:text-white"
+                              className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-600 hover:text-white"
                             >
                               <Eye className="h-3.5 w-3.5" aria-hidden="true" />
                               Detail

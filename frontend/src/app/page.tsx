@@ -225,8 +225,8 @@ export default function DashboardPage() {
   const canManageDocuments = currentUser?.role === "admin";
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 flex font-sans">
-      <aside className={`bg-slate-900/80 backdrop-blur-xl border-r border-emerald-500/20 flex flex-col justify-between p-4 hidden md:flex shrink-0 transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-64" : "w-20"}`}>
+    <main className="min-h-screen bg-transparent text-slate-100 flex font-sans">
+      <aside className={`bg-[#07150e]/80 backdrop-blur-xl border-r border-emerald-500/20 flex flex-col justify-between p-4 hidden md:flex shrink-0 transition-all duration-300 ease-in-out ${isSidebarOpen ? "w-64" : "w-20"}`}>
         <div>
           <div className={`flex items-center mb-8 ${isSidebarOpen ? "justify-between" : "justify-center"}`}>
             {isSidebarOpen && (
@@ -267,14 +267,14 @@ export default function DashboardPage() {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0 overflow-visible">
-        <header className="relative z-50 h-16 overflow-visible bg-slate-900/70 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
+        <header className="relative z-50 h-16 overflow-visible bg-[#0b1f14]/65 backdrop-blur-md border-b border-emerald-500/20 flex items-center justify-between px-6 shrink-0">
           <div className="hidden sm:block w-96">
             <input
               type="text"
               value={searchQuery}
               onChange={handleSearchChange}
               placeholder="Cari nomor dokumen atau rekanan..."
-              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-xl px-4 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-emerald-500 transition"
+              className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-4 py-2 text-sm text-slate-100 placeholder:text-emerald-300/60 transition focus:border-emerald-400 focus:outline-none"
             />
           </div>
           <div className="flex items-center gap-4 ml-auto">
@@ -304,9 +304,9 @@ export default function DashboardPage() {
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute right-0 z-[99] mt-2 w-52 rounded-xl border border-slate-800 bg-slate-900 py-2 text-white shadow-xl" role="menu">
-                  <div className="px-4 py-2 border-b border-slate-800">
-                    <p className="text-xs text-slate-400">Masuk sebagai</p>
+                <div className="absolute right-0 z-[99] mt-2 w-56 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/95 py-2 text-emerald-100 shadow-2xl backdrop-blur-xl" role="menu">
+                  <div className="mb-1 border-b border-emerald-500/10 px-4 py-2">
+                    <p className="text-xs text-emerald-400/60">Masuk sebagai</p>
                     <p className="text-sm font-semibold truncate">{currentUser?.name || "Administrator"}</p>
                   </div>
                   <button
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                       setIsDropdownOpen(false);
                       router.push("/profile");
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                    className="w-full px-4 py-2 text-left text-sm text-emerald-100/80 transition hover:bg-emerald-500/10 hover:text-emerald-300"
                   >
                     Profil Saya
                   </button>
@@ -327,11 +327,11 @@ export default function DashboardPage() {
                       setIsDropdownOpen(false);
                       router.push("/contracts");
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-slate-300 transition hover:bg-slate-800 hover:text-white"
+                    className="w-full px-4 py-2 text-left text-sm text-emerald-100/80 transition hover:bg-emerald-500/10 hover:text-emerald-300"
                   >
                     Kontrak &amp; MoU
                   </button>
-                  <div className="border-t border-slate-800 my-1" />
+                  <div className="my-1 border-t border-emerald-500/10" />
                   <button
                     type="button"
                     role="menuitem"
@@ -339,7 +339,7 @@ export default function DashboardPage() {
                       setIsDropdownOpen(false);
                       setShowLogoutModal(true);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-slate-800 hover:text-rose-300 transition font-medium"
+                    className="w-full px-4 py-2 text-left text-sm font-medium text-rose-400 transition hover:bg-rose-500/10 hover:text-rose-300"
                   >
                     Keluar
                   </button>
@@ -380,7 +380,7 @@ export default function DashboardPage() {
 
         {/* Ringkasan Dokumen */}
         <div id="statistik" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-5 shadow-2xl backdrop-blur-md">
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-emerald-500/10 blur-2xl" />
             <div className="relative z-10 flex items-center justify-between">
               <div>
@@ -392,7 +392,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-5 shadow-2xl backdrop-blur-md">
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-cyan-500/10 blur-2xl" />
             <div className="relative z-10 flex items-center justify-between">
               <div>
@@ -404,7 +404,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 shadow-lg backdrop-blur-xl">
+          <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-5 shadow-2xl backdrop-blur-md">
             <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-amber-500/10 blur-2xl" />
             <div className="relative z-10 flex items-center justify-between">
               <div>
@@ -499,9 +499,9 @@ export default function DashboardPage() {
       </div>
 
       {editingDocument && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-slate-900 rounded-2xl shadow-xl border border-slate-800 w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/90 text-slate-100 shadow-[0_0_50px_rgba(4,47,27,0.5)] backdrop-blur-2xl">
+            <div className="flex items-center justify-between border-b border-emerald-500/10 px-6 py-4">
               <div>
                 <h3 className="text-base font-semibold text-white">Edit Metadata Dokumen</h3>
                 <p className="text-xs text-slate-500 mt-1">Perbarui informasi arsip tanpa mengganti berkas versi.</p>
@@ -515,11 +515,11 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Nomor Dokumen</label>
-                  <input name="document_number" required value={editForm.document_number} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 focus:border-emerald-500 focus:outline-none" />
+                  <input name="document_number" required value={editForm.document_number} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">Tipe Dokumen</label>
-                  <select name="document_type" value={editForm.document_type} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 focus:border-emerald-500 focus:outline-none">
+                  <select name="document_type" value={editForm.document_type} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none">
                     <option value="contract">Contract</option>
                     <option value="mou">MoU</option>
                     <option value="addendum">Addendum</option>
@@ -530,26 +530,26 @@ export default function DashboardPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Nama Dokumen</label>
-                <input name="document_name" required value={editForm.document_name} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none" />
+                <input name="document_name" required value={editForm.document_name} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-emerald-300/60 focus:border-emerald-400 focus:outline-none" />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Pihak Rekanan</label>
-                <input name="partner" required value={editForm.partner} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none" />
+                <input name="partner" required value={editForm.partner} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-emerald-300/60 focus:border-emerald-400 focus:outline-none" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {(["document_date", "effective_date", "expiry_date"] as const).map((field) => (
                   <div key={field}>
                     <label className="block text-xs font-semibold text-slate-400 mb-1">{field === "document_date" ? "Tanggal Dokumen" : field === "effective_date" ? "Tanggal Efektif" : "Tanggal Berakhir"}</label>
-                    <input type="date" name={field} required value={editForm[field]} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 focus:border-emerald-500 focus:outline-none" />
+                    <input type="date" name={field} required value={editForm[field]} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400" />
                   </div>
                 ))}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Status</label>
-                <select name="status" value={editForm.status} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 focus:border-emerald-500 focus:outline-none">
+                <select name="status" value={editForm.status} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 focus:border-emerald-400 focus:outline-none">
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>
                   <option value="expired">Expired</option>
@@ -559,12 +559,12 @@ export default function DashboardPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1">Deskripsi</label>
-                <textarea name="description" rows={3} value={editForm.description} onChange={handleEditChange} className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none" />
+                <textarea name="description" rows={3} value={editForm.description} onChange={handleEditChange} className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 px-3 py-2 text-sm text-slate-100 placeholder:text-emerald-300/60 focus:border-emerald-400 focus:outline-none" />
               </div>
 
-              <div className="flex justify-end gap-2 pt-4 border-t border-slate-800">
-                <button type="button" disabled={savingEdit} onClick={() => setEditingDocument(null)} className="px-4 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition">Batal</button>
-                <button type="submit" disabled={savingEdit} className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-900/20 transition disabled:opacity-50">{savingEdit ? "Menyimpan..." : "Simpan Perubahan"}</button>
+              <div className="flex justify-end gap-2 border-t border-emerald-500/10 pt-4">
+                <button type="button" disabled={savingEdit} onClick={() => setEditingDocument(null)} className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-4 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-900/40">Batal</button>
+                <button type="submit" disabled={savingEdit} className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg shadow-emerald-950/50 transition hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50">{savingEdit ? "Menyimpan..." : "Simpan Perubahan"}</button>
               </div>
             </form>
           </div>
@@ -576,8 +576,8 @@ export default function DashboardPage() {
 
       {/* Modal Konfirmasi Hapus */}
       {deletingDocument && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 border border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-500/20 bg-[#0b1f14]/95 p-6 text-center text-slate-100 shadow-2xl backdrop-blur-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
@@ -590,7 +590,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <p className="text-sm text-slate-300 bg-slate-800/60 border border-slate-700 rounded-xl p-3 break-words">
+            <p className="break-words rounded-xl border border-emerald-500/20 bg-emerald-950/40 p-3 text-sm text-emerald-100/80">
               {deletingDocument.document_name}
             </p>
 
@@ -599,7 +599,7 @@ export default function DashboardPage() {
                 type="button"
                 disabled={deleting}
                 onClick={() => setDeletingDocument(null)}
-                className="px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+                className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-900/40"
               >
                 Batal
               </button>
@@ -618,8 +618,8 @@ export default function DashboardPage() {
 
       {/* Modal Konfirmasi Logout */}
       {showLogoutModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4 border border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-3xl border border-emerald-500/20 bg-[#0b1f14]/95 p-6 text-center text-slate-100 shadow-2xl backdrop-blur-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -637,7 +637,7 @@ export default function DashboardPage() {
                 type="button"
                 disabled={loggingOut}
                 onClick={() => setShowLogoutModal(false)}
-                className="px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition"
+                className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-900/40"
               >
                 Batal
               </button>

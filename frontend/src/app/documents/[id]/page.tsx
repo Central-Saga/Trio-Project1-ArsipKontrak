@@ -167,7 +167,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 text-sm">
+      <div className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] flex items-center justify-center text-slate-400 text-sm">
         Memuat detail arsip dokumen...
       </div>
     );
@@ -175,7 +175,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   if (error || !document) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] flex flex-col items-center justify-center gap-4">
         <div className="text-rose-400 text-sm font-medium">{error || "Dokumen tidak ditemukan."}</div>
         <button
           onClick={() => router.push("/")}
@@ -188,7 +188,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 md:p-10 text-slate-100">
+    <main className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] p-6 md:p-10 text-slate-100">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Navigasi & Aksi Kembali */}
         <div className="flex justify-between items-center">
@@ -209,7 +209,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Kartu Informasi Utama */}
-        <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl p-6 space-y-6">
+        <div className="rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/60 p-6 shadow-[0_8px_32px_0_rgba(0,20,10,0.37)] backdrop-blur-2xl space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-800">
             <div>
               <div className="flex items-center gap-3">
@@ -257,7 +257,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
           {document.description && (
             <div className="pt-4 border-t border-slate-800 text-xs space-y-1">
               <span className="text-slate-400 font-medium">Deskripsi / Catatan Ruang Lingkup:</span>
-              <p className="text-slate-300 bg-slate-800/60 p-3 rounded-xl border border-slate-700 leading-relaxed">
+              <p className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 p-3 leading-relaxed text-emerald-100/80">
                 {document.description}
               </p>
             </div>
@@ -265,7 +265,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         </div>
 
         {/* Tabel Riwayat Versi Dokumen */}
-        <div className="bg-slate-900/70 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+        <div className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 shadow-2xl backdrop-blur-xl">
           <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <div>
               <h2 className="font-semibold text-slate-200 text-sm">Riwayat Versi Dokumen & Berkas</h2>
@@ -278,7 +278,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900/50 text-slate-500 font-medium border-b border-slate-800">
+              <thead className="border-b border-emerald-500/10 bg-[#0b1f14]/60 font-medium text-slate-500">
                 <tr>
                   <th className="px-6 py-3">Versi</th>
                   <th className="px-6 py-3">Nama Berkas PDF</th>
@@ -290,7 +290,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {versions.map((ver) => (
-                  <tr key={ver.id} className="hover:bg-slate-800/40 transition">
+                  <tr key={ver.id} className="transition hover:bg-emerald-500/5">
                     <td className="px-6 py-4 font-bold text-emerald-600">{ver.version_number}</td>
                     <td className="px-6 py-4 font-medium text-slate-200">{ver.file_name}</td>
                     <td className="px-6 py-4 font-mono text-slate-500 text-[11px] truncate max-w-[200px]" title={ver.file_hash}>
@@ -318,9 +318,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Modal Unggah Versi Baru */}
       {showNewVersionModal && user?.role === "admin" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-800">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md space-y-4 rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/90 p-6 text-slate-100 shadow-[0_0_50px_rgba(4,47,27,0.5)] backdrop-blur-2xl">
+            <div className="flex items-center justify-between border-b border-emerald-500/10 pb-3">
               <h3 className="text-base font-bold text-white">Unggah Versi Baru / Adendum</h3>
               <button onClick={() => setShowNewVersionModal(false)} className="text-slate-400 hover:text-slate-600 text-lg">
                 &times;
@@ -341,7 +341,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                   required
                   value={versionNumberInput}
                   onChange={(e) => setVersionNumberInput(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-slate-100 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 />
               </div>
 
@@ -363,23 +363,23 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                   value={notesInput}
                   onChange={(e) => setNotesInput(e.target.value)}
                   placeholder="Keterangan perubahan klausul atau penambahan adendum..."
-                  className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white placeholder:text-emerald-300/60 shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
                 ></textarea>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex justify-end gap-2 border-t border-emerald-500/10 pt-3">
                 <button
                   type="button"
                   disabled={uploadingVersion}
                   onClick={() => setShowNewVersionModal(false)}
-                  className="px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg"
+                  className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-900/40"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={uploadingVersion}
-                  className="px-4 py-2 text-xs font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm disabled:opacity-50"
+                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/50 transition-all duration-300 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50"
                 >
                   {uploadingVersion ? "Mengunggah..." : "Simpan Versi"}
                 </button>

@@ -94,8 +94,8 @@ export default function StatisticsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-950 text-slate-100">
-      <aside className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-emerald-500/20 bg-slate-900/90 p-4 backdrop-blur-xl transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}>
+    <div className="flex min-h-screen bg-transparent text-slate-100">
+      <aside className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-emerald-500/20 bg-[#07150e]/80 p-4 backdrop-blur-xl transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}>
         <div>
           <div className={`mb-8 flex items-center ${isSidebarOpen ? "justify-between" : "justify-center"}`}>
             {isSidebarOpen && (
@@ -116,13 +116,13 @@ export default function StatisticsPage() {
       </aside>
 
       <div className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}>
-        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-slate-800 bg-slate-900/70 px-6 backdrop-blur-xl">
+        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-emerald-500/20 bg-[#0b1f14]/65 px-6 backdrop-blur-md">
           <div><p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">SAGA ARSIP</p><p className="text-xs text-slate-500">Ringkasan dan statistik arsip</p></div>
           <div ref={profileMenuRef} className="relative">
             <button type="button" onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)} aria-expanded={isProfileMenuOpen} aria-haspopup="menu" aria-label="Buka profil" className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-500">{user?.name?.slice(0, 2).toUpperCase() || "AD"}</button>
             {isProfileMenuOpen && (
-              <div className="absolute right-0 top-11 z-[99] w-64 rounded-2xl border border-emerald-500/30 bg-slate-900 py-2 text-white shadow-2xl backdrop-blur-xl" role="menu">
-                <div className="border-b border-slate-800 px-4 py-3"><p className="text-xs text-slate-400">Masuk sebagai</p><p className="truncate text-sm font-bold">{user?.name || "Administrator"}</p></div>
+              <div className="absolute right-0 top-11 z-[99] w-56 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/95 py-2 text-emerald-100 shadow-2xl backdrop-blur-xl" role="menu">
+                <div className="mb-1 border-b border-emerald-500/10 px-4 py-3"><p className="text-xs text-emerald-400/60">Masuk sebagai</p><p className="truncate text-sm font-bold text-white">{user?.name || "Administrator"}</p></div>
                 <button type="button" role="menuitem" onClick={() => { setIsProfileMenuOpen(false); router.push("/profile"); }} className="w-full px-4 py-2.5 text-left text-sm text-slate-300 transition hover:bg-emerald-500/10 hover:text-emerald-400">Profil Saya</button>
                 <button type="button" role="menuitem" onClick={() => { setIsProfileMenuOpen(false); router.push("/contracts"); }} className="w-full px-4 py-2.5 text-left text-sm text-slate-300 transition hover:bg-emerald-500/10 hover:text-emerald-400">Kontrak &amp; MoU</button>
                 <div className="mt-1 border-t border-slate-800 pt-1"><button type="button" role="menuitem" onClick={() => { setIsProfileMenuOpen(false); handleLogout(); }} className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-400 transition hover:bg-rose-500/10">Keluar</button></div>
@@ -144,12 +144,12 @@ export default function StatisticsPage() {
                   {cards.map((card) => {
                     const Icon = card.icon;
                     const accent = accentClasses[card.accent];
-                    return <button key={card.label} type="button" onClick={() => router.push(card.href)} className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-[#111827]/60 p-5 text-left shadow-lg backdrop-blur-xl transition hover:border-emerald-500/50 hover:bg-slate-900/70"><div className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-2xl ${accent.glow}`} /><div className="relative z-10 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.label}</p><h2 className="mt-2 text-3xl font-extrabold text-white">{card.value}</h2><p className="mt-2 text-xs text-slate-500">Lihat dokumen terkait</p></div><div className={`flex h-12 w-12 items-center justify-center rounded-xl border transition group-hover:scale-110 ${accent.icon}`}><Icon className="h-6 w-6" aria-hidden="true" /></div></div></button>;
+                    return <button key={card.label} type="button" onClick={() => router.push(card.href)} className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-5 text-left shadow-2xl backdrop-blur-md transition hover:border-emerald-400/50 hover:bg-[#0b1f14]/80"><div className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-2xl ${accent.glow}`} /><div className="relative z-10 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.label}</p><h2 className="mt-2 text-3xl font-extrabold text-white">{card.value}</h2><p className="mt-2 text-xs text-slate-500">Lihat dokumen terkait</p></div><div className={`flex h-12 w-12 items-center justify-center rounded-xl border transition group-hover:scale-110 ${accent.icon}`}><Icon className="h-6 w-6" aria-hidden="true" /></div></div></button>;
                   })}
                 </div>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <button type="button" onClick={() => router.push("/contracts?status=draft")} className="group flex items-center justify-between rounded-2xl border border-slate-800 bg-[#111827]/60 p-6 text-left shadow-lg backdrop-blur-xl transition hover:border-amber-500/50"><div><h3 className="font-semibold text-white">Dokumen Berstatus Draft</h3><p className="mt-1 text-xs text-slate-400">Menunggu persetujuan atau finalisasi.</p></div><span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-lg font-bold text-amber-400 transition group-hover:scale-105">{draftCount}</span></button>
-                  <button type="button" onClick={() => router.push("/contracts?status=expired")} className="group flex items-center justify-between rounded-2xl border border-slate-800 bg-[#111827]/60 p-6 text-left shadow-lg backdrop-blur-xl transition hover:border-rose-500/50"><div><h3 className="font-semibold text-white">Dokumen Kedaluwarsa</h3><p className="mt-1 text-xs text-slate-400">Memerlukan pembaruan atau adendum.</p></div><span className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-lg font-bold text-rose-400 transition group-hover:scale-105">{expiredCount}</span></button>
+                  <button type="button" onClick={() => router.push("/contracts?status=draft")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-amber-500/50"><div><h3 className="font-semibold text-white">Dokumen Berstatus Draft</h3><p className="mt-1 text-xs text-slate-400">Menunggu persetujuan atau finalisasi.</p></div><span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-lg font-bold text-amber-400 transition group-hover:scale-105">{draftCount}</span></button>
+                  <button type="button" onClick={() => router.push("/contracts?status=expired")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-rose-500/50"><div><h3 className="font-semibold text-white">Dokumen Kedaluwarsa</h3><p className="mt-1 text-xs text-slate-400">Memerlukan pembaruan atau adendum.</p></div><span className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-lg font-bold text-rose-400 transition group-hover:scale-105">{expiredCount}</span></button>
                 </div>
               </>
             )}

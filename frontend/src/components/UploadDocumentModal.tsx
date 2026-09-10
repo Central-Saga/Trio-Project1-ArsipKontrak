@@ -136,9 +136,9 @@ export default function UploadDocumentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-slate-900 rounded-2xl shadow-xl w-full max-w-3xl max-h-[calc(100vh-2rem)] my-4 overflow-hidden border border-slate-800 flex flex-col">
-        <div className="bg-emerald-800 px-6 py-4 flex justify-between items-center text-white shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="bg-[#0b1f14]/90 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl shadow-[0_0_50px_rgba(4,47,27,0.5)] text-slate-100 w-full max-w-3xl max-h-[calc(100vh-2rem)] my-4 overflow-hidden flex flex-col">
+        <div className="border-b border-emerald-500/10 px-6 py-4 flex justify-between items-center text-white shrink-0">
           <div>
             <h3 className="text-lg font-semibold tracking-wide">
               Unggah Dokumen Baru
@@ -174,7 +174,7 @@ export default function UploadDocumentModal({
                 required
                 value={formData.project_id}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100"
+                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               >
                 {loadingProjects ? (
                   <option value="">Memuat project...</option>
@@ -196,7 +196,7 @@ export default function UploadDocumentModal({
                 name="document_type"
                 value={formData.document_type}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100"
+                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               >
                 <option value="contract">Contract</option>
                 <option value="mou">MoU</option>
@@ -216,7 +216,7 @@ export default function UploadDocumentModal({
                 placeholder="CTR/2026/IX/003"
                 value={formData.document_number}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100 placeholder:text-slate-500"
+                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
               />
             </div>
 
@@ -231,7 +231,7 @@ export default function UploadDocumentModal({
                 placeholder="PT Bonjaka Jaya"
                 value={formData.partner}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100 placeholder:text-slate-500"
+                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
               />
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function UploadDocumentModal({
               placeholder="Perjanjian Kerja Sama Penyediaan Layanan Infrastruktur"
               value={formData.document_name}
               onChange={handleChange}
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100 placeholder:text-slate-500"
+              className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
             />
           </div>
 
@@ -262,7 +262,7 @@ export default function UploadDocumentModal({
                 required
                 value={formData.document_date}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100"
+                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
               />
             </div>
             <div>
@@ -275,7 +275,7 @@ export default function UploadDocumentModal({
                 required
                 value={formData.effective_date}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100"
+                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100"
               />
             </div>
             <div>
@@ -288,7 +288,7 @@ export default function UploadDocumentModal({
                 required
                 value={formData.expiry_date}
                 onChange={handleChange}
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100"
+                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100"
               />
             </div>
           </div>
@@ -297,10 +297,10 @@ export default function UploadDocumentModal({
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
               Berkas PDF Dokumen (Max 20MB)
             </label>
-            <div className="mt-1 flex justify-center px-6 pt-3 pb-4 border-2 border-slate-700 border-dashed rounded-xl hover:border-emerald-500 transition-colors bg-slate-800/40">
+            <div className="mt-1 flex justify-center px-6 pt-3 pb-4 border-2 border-emerald-500/20 border-dashed rounded-xl hover:border-emerald-400 transition-colors bg-[#07140c]/60">
               <div className="space-y-1 text-center">
-                <svg
-                  className="mx-auto h-9 w-9 text-slate-500"
+                  <svg
+                  className="mx-auto h-9 w-9 text-emerald-400/60"
                   stroke="currentColor"
                   fill="none"
                   viewBox="0 0 48 48"
@@ -314,7 +314,7 @@ export default function UploadDocumentModal({
                   />
                 </svg>
                 <div className="flex text-sm text-slate-300 justify-center">
-                  <label className="relative cursor-pointer rounded-md font-medium text-emerald-700 hover:text-emerald-800 focus-within:outline-none">
+                  <label className="relative cursor-pointer rounded-md font-medium text-emerald-300 hover:text-emerald-200 focus-within:outline-none">
                     <span>
                       {selectedFile ? selectedFile.name : "Unggah berkas"}
                     </span>
@@ -328,7 +328,7 @@ export default function UploadDocumentModal({
                   </label>
                   {!selectedFile && <p className="pl-1">atau seret ke sini</p>}
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-emerald-300/60">
                   PDF hingga 20MB (Terenkripsi Aman)
                 </p>
               </div>
@@ -345,7 +345,7 @@ export default function UploadDocumentModal({
               value={formData.description}
               onChange={handleChange}
               placeholder="Catatan ruang lingkup atau klausul penting..."
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 text-slate-100 placeholder:text-slate-500"
+              className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
             ></textarea>
           </div>
 
@@ -354,14 +354,14 @@ export default function UploadDocumentModal({
               type="button"
               disabled={submitting}
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-sm font-medium transition"
+              className="px-4 py-2 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-500/20 text-emerald-300 rounded-xl text-sm font-medium transition"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+              className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/50 transition-all duration-300 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50"
             >
               {submitting
                 ? "Mengunggah & Menghitung Hash..."

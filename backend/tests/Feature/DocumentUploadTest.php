@@ -61,7 +61,7 @@ class DocumentUploadTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson('/api/documents', $payload);
+            ->postJson('/api/v1/documents', $payload);
 
         $response->assertStatus(201)
             ->assertJsonPath('data.document_number', 'DOC/TEST/2026/001')
@@ -109,7 +109,7 @@ class DocumentUploadTest extends TestCase
         ];
 
         $response = $this->actingAs($this->user)
-            ->postJson('/api/documents', $payload);
+            ->postJson('/api/v1documents', $payload);
 
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['file']);

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, FileKey2, LockKeyhole, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,118 +39,71 @@ export default function LoginPage() {
 
       // Arahkan ke dashboard utama
       router.push("/");
-    } catch (err: any) {
-      setErrorMsg(err.message || "Gagal terhubung ke server backend.");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Gagal terhubung ke server backend.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="max-w-md w-full bg-slate-900/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-slate-800">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
-            Sistem Arsip Dokumen
-          </h2>
-          <p className="text-[10px] leading-4 text-slate-400 mt-1">
-            Masuk untuk mengakses dan mengelola berkas kontrak & MoU
-          </p>
-        </div>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#030905] px-4 py-8 font-sans text-slate-100">
+      <div className="pointer-events-none absolute -left-40 -top-48 h-[520px] w-[520px] rounded-full bg-emerald-600/20 blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-56 -right-48 h-[620px] w-[620px] rounded-full bg-teal-900/30 blur-[150px]" />
 
-        {errorMsg && (
-          <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-sm text-center">
-            {errorMsg}
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
-              Alamat Email
-            </label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-              className="w-full px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-100 placeholder:text-slate-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">
-              Kata Sandi
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2 pr-10 bg-slate-800/60 border border-slate-700/60 rounded-xl text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-slate-100 placeholder:text-slate-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-emerald-400 transition"
-              >
-                {showPassword ? (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                )}
-              </button>
+      <div className="relative z-10 flex min-h-[620px] w-full max-w-[1000px] overflow-hidden rounded-[2rem] border border-emerald-500/20 bg-[#0b1f14]/40 shadow-[0_8px_32px_0_rgba(0,0,0,0.5)] backdrop-blur-2xl lg:h-[620px]">
+        <section className="flex w-full flex-col justify-center px-7 py-12 sm:px-12 lg:w-1/2 lg:py-0">
+          <div className="mb-8 text-center lg:text-left">
+            <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300 shadow-[0_0_24px_rgba(16,185,129,0.12)]">
+              <FileKey2 className="h-6 w-6" aria-hidden="true" />
             </div>
+            <h1 className="text-3xl font-bold tracking-tight text-white">Selamat datang kembali</h1>
+            <p className="mt-2 text-sm leading-6 text-emerald-100/60">Masuk untuk mengakses arsip kontrak dan MoU yang tersimpan aman.</p>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm transition shadow-lg shadow-emerald-900/20 disabled:opacity-50"
-          >
-            {loading ? "Memproses Masuk..." : "Masuk"}
-          </button>
-        </form>
+          {errorMsg && <div className="mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-center text-sm text-rose-300">{errorMsg}</div>}
 
-        <div className="mt-6 border-t border-slate-800 pt-4 text-xs text-slate-500 text-center">
-          Akun dibuat dan dikelola oleh Administrator sistem.
-        </div>
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div>
+              <label htmlFor="email" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-emerald-100/60">Alamat Email</label>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400/70" aria-hidden="true" />
+                <input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="admin@example.com" className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/60 px-4 py-3 pl-11 text-sm text-white outline-none transition placeholder:text-emerald-700/60 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40" />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-emerald-100/60">Kata Sandi</label>
+              <div className="relative">
+                <LockKeyhole className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-400/70" aria-hidden="true" />
+                <input id="password" type={showPassword ? "text" : "password"} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Masukkan kata sandi" className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/60 px-4 py-3 pl-11 pr-11 text-sm text-white outline-none transition placeholder:text-emerald-700/60 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/40" />
+                <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-emerald-100/40 transition hover:text-emerald-300">
+                  {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 text-sm font-semibold text-slate-950 shadow-lg shadow-emerald-900/40 transition-all duration-300 hover:from-emerald-400 hover:to-teal-500 disabled:cursor-wait disabled:opacity-50">
+              {loading ? "Memproses Masuk..." : "MASUK KE ARSIP"}
+            </button>
+          </form>
+
+          <p className="mt-7 border-t border-emerald-500/15 pt-5 text-center text-xs text-emerald-100/40 lg:text-left">Akun dibuat dan dikelola oleh Administrator sistem.</p>
+        </section>
+
+        <aside className="relative hidden w-1/2 flex-col items-center justify-center overflow-hidden rounded-l-[7rem] border-l border-emerald-500/10 bg-gradient-to-br from-emerald-950 via-[#041209] to-[#020804] px-10 text-center shadow-2xl lg:flex">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="relative z-10">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl border border-emerald-400/25 bg-emerald-500/10 text-emerald-400 shadow-[0_0_30px_rgba(16,185,129,0.18)]">
+              <FileKey2 className="h-10 w-10" aria-hidden="true" />
+            </div>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-emerald-400/70">SAGA ARSIP</p>
+            <h2 className="text-3xl font-bold text-white">Ruang aman untuk dokumen penting.</h2>
+            <p className="mx-auto mt-4 max-w-xs text-sm leading-6 text-emerald-100/55">Kelola kontrak, MoU, versi dokumen, dan aktivitas legal dalam satu tempat yang terkontrol.</p>
+            <div className="mx-auto mt-8 flex items-center justify-center gap-2 text-xs text-emerald-300/60"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> Enkripsi dan kontrol akses terjaga</div>
+          </div>
+        </aside>
       </div>
-    </div>
+    </main>
   );
 }
