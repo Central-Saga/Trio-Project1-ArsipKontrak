@@ -19,18 +19,31 @@ class DocumentController extends Controller
     {
         $totalArsip = Document::count();
         $dokumenAktif = Document::where('status', 'active')->count();
-        $totalKontrak = Document::where('document_type', 'contract')->count();
+        $dokumenInactive = Document::where('status', 'inactive')->count();
         $dokumenDraft = Document::where('status', 'draft')->count();
         $dokumenExpired = Document::where('status', 'expired')->count();
+        $dokumenTerminated = Document::where('status', 'terminated')->count();
+        $totalKontrak = Document::where('document_type', 'contract')->count();
+
+        $statusDistribution = [
+            ['name' => 'Active', 'value' => $dokumenAktif, 'color' => '#10b981'],
+            ['name' => 'Inactive', 'value' => $dokumenInactive, 'color' => '#64748b'],
+            ['name' => 'Draft', 'value' => $dokumenDraft, 'color' => '#f59e0b'],
+            ['name' => 'Expired', 'value' => $dokumenExpired, 'color' => '#f43f5e'],
+            ['name' => 'Terminated', 'value' => $dokumenTerminated, 'color' => '#475569'],
+        ];
 
         return response()->json([
             'success' => true,
             'data' => [
                 'total_arsip' => $totalArsip,
-                'dokumen_aktif' => $dokumenAktif,
                 'total_kontrak' => $totalKontrak,
+                'dokumen_aktif' => $dokumenAktif,
+                'inactive' => $dokumenInactive,
                 'draft' => $dokumenDraft,
                 'expired' => $dokumenExpired,
+                'terminated' => $dokumenTerminated,
+                'distribution' => $statusDistribution,
             ]
         ]);
     }
@@ -63,6 +76,41 @@ class DocumentController extends Controller
         $documents = $query->latest()->paginate(15);
 
         return DocumentResource::collection($documents);
+    }
+
+    /**
+     * Tampilkan dokumen yang berada di tempat sampah.
+     */
+    public function trashed(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            abort(403, 'Hanya administrator yang dapat melihat tempat sampah.');
+        }
+
+        $documents = Document::onlyTrashed()
+            ->with(['project', 'creator', 'activeVersion'])
+            ->latest('deleted_at')
+            ->get();
+
+        return DocumentResource::collection($documents);
+    }
+
+    /**
+     * Pulihkan dokumen dari tempat sampah.
+     */
+    public function restore(Request $request, string $id)
+    {
+        if ($request->user()->role !== 'admin') {
+            abort(403, 'Hanya administrator yang dapat memulihkan dokumen.');
+        }
+
+        $document = Document::onlyTrashed()->findOrFail($id);
+        $document->restore();
+
+        return response()->json([
+            'message' => 'Dokumen berhasil dikembalikan.',
+            'data' => new DocumentResource($document->load(['project', 'creator', 'versions'])),
+        ]);
     }
 
     /**
@@ -120,6 +168,7 @@ class DocumentController extends Controller
                 'file_size'      => $file->getSize(),
                 'file_hash'      => $fileHash,
                 'mime_type'      => $file->getMimeType(),
+                'encrypted_at'   => now(),
                 'notes'          => $validated['notes'] ?? 'Dokumen awal diunggah.',
                 'uploaded_by'    => $request->user()->id,
             ]);
@@ -258,6 +307,7 @@ class DocumentController extends Controller
             'file_size'      => $file->getSize(),
             'file_hash'      => $fileHash,
             'mime_type'      => $file->getMimeType(),
+            'encrypted_at'   => now(),
             'notes'          => $validated['notes'] ?? null,
             'uploaded_by'    => $request->user()->id,
         ]);

@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BarChart3, CheckCircle2, FileText, Folder, LayoutDashboard, LogOut, Menu, ShieldAlert } from "lucide-react";
+import { ArrowLeft, BarChart3, FileText, Folder, LayoutDashboard, LogOut, Menu, Plus, ShieldAlert } from "lucide-react";
 import api from "@/lib/api";
 import { DocumentItem } from "@/types/document";
+import DocumentStatsChart from "@/components/DocumentStatsChart";
+import DocumentStatusPieChart from "@/components/DocumentStatusPieChart";
+import UploadDocumentModal from "@/components/UploadDocumentModal";
 
 interface CurrentUser {
   id: number;
@@ -20,6 +24,8 @@ export default function StatisticsPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isSecureMode] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +33,17 @@ export default function StatisticsPage() {
     try {
       setLoading(true);
       const response = await api.get("/documents");
-      setDocuments(response.data?.data || response.data || []);
+      const rawData = response.data;
+      const items = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : Array.isArray(rawData?.data?.data)
+            ? rawData.data.data
+            : Array.isArray(rawData?.documents)
+              ? rawData.documents
+              : [];
+      setDocuments(items);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal memuat statistik arsip.");
@@ -59,6 +75,16 @@ export default function StatisticsPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    const handleOpenUploadModal = () => {
+      if (user?.role === "admin") {
+        setIsUploadOpen(true);
+      }
+    };
+    window.addEventListener("open-upload-modal", handleOpenUploadModal);
+    return () => window.removeEventListener("open-upload-modal", handleOpenUploadModal);
+  }, [user]);
+
   const handleLogout = async () => {
     try {
       await api.post("/logout");
@@ -79,10 +105,10 @@ export default function StatisticsPage() {
   const mouCount = documents.filter((document) => document.document_type.toLowerCase() === "mou").length;
   const expiredCount = documents.filter((document) => document.status.toLowerCase() === "expired").length;
   const draftCount = documents.filter((document) => document.status.toLowerCase() === "draft").length;
+  const terminatedCount = documents.filter((document) => document.status.toLowerCase() === "terminated").length;
 
   const cards = [
     { label: "Total Arsip", value: totalArsip, icon: Folder, accent: "emerald", href: "/contracts" },
-    { label: "Dokumen Aktif", value: activeCount, icon: CheckCircle2, accent: "cyan", href: "/contracts?status=active" },
     { label: "Total Kontrak", value: contractCount, icon: ShieldAlert, accent: "amber", href: "/contracts?type=contract" },
     { label: "Total MoU", value: mouCount, icon: FileText, accent: "emerald", href: "/contracts?type=mou" },
   ];
@@ -92,6 +118,13 @@ export default function StatisticsPage() {
     cyan: { glow: "bg-cyan-500/10", icon: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400" },
     amber: { glow: "bg-amber-500/10", icon: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
   };
+
+  const statusCards = [
+    { label: "Dokumen Aktif", value: activeCount, href: "/contracts?status=active", classes: "border-emerald-500/30 hover:border-emerald-500", textClass: "text-emerald-400" },
+    { label: "Draft", value: draftCount, href: "/contracts?status=draft", classes: "border-amber-500/30 hover:border-amber-500", textClass: "text-amber-400" },
+    { label: "Expired", value: expiredCount, href: "/contracts?status=expired", classes: "border-rose-500/30 hover:border-rose-500", textClass: "text-rose-400" },
+    { label: "Terminated", value: terminatedCount, href: "/contracts?status=terminated", classes: "border-slate-600/30 hover:border-slate-400", textClass: "text-slate-400" },
+  ];
 
   return (
     <div className="flex min-h-screen bg-transparent text-slate-100">
@@ -131,11 +164,31 @@ export default function StatisticsPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-8 md:px-10">
-          <div className="mx-auto max-w-6xl space-y-8">
-            <div className="border-b border-emerald-500/20 pb-6">
-              <h1 className="flex items-center gap-2 text-2xl font-bold text-white"><BarChart3 className="h-7 w-7 text-emerald-400" aria-hidden="true" />Ringkasan &amp; Statistik Arsip</h1>
-              <p className="mt-1 text-sm text-slate-400">Analisis status dokumen, kontrak, dan MoU perusahaan.</p>
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          <div className="mx-auto max-w-7xl space-y-6">
+            <div className="flex flex-col gap-4 border-b border-emerald-500/20 pb-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push("/")}
+                  className="mb-3 flex items-center gap-2 text-sm text-slate-400 transition hover:text-emerald-400"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Kembali ke Dashboard
+                </button>
+                <h1 className="flex items-center gap-2 text-2xl font-bold text-white"><BarChart3 className="h-7 w-7 text-emerald-400" aria-hidden="true" />Ringkasan &amp; Statistik Arsip</h1>
+                <p className="mt-1 text-sm text-slate-400">Analisis status dokumen, kontrak, dan MoU perusahaan.</p>
+              </div>
+              {user?.role === "admin" && (
+                <button
+                  type="button"
+                  onClick={() => window.dispatchEvent(new Event("open-upload-modal"))}
+                  className="inline-flex items-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/50 transition hover:bg-emerald-500 sm:self-auto"
+                >
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Unggah Dokumen Baru
+                </button>
+              )}
             </div>
 
             {loading ? <div className="rounded-2xl border border-emerald-500/20 bg-emerald-950/20 p-10 text-center text-sm text-slate-400 backdrop-blur-xl">Memuat statistik...</div> : error ? <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-10 text-center text-sm text-rose-400">{error}</div> : (
@@ -147,6 +200,20 @@ export default function StatisticsPage() {
                     return <button key={card.label} type="button" onClick={() => router.push(card.href)} className="group relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-5 text-left shadow-2xl backdrop-blur-md transition hover:border-emerald-400/50 hover:bg-[#0b1f14]/80"><div className={`pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full blur-2xl ${accent.glow}`} /><div className="relative z-10 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{card.label}</p><h2 className="mt-2 text-3xl font-extrabold text-white">{card.value}</h2><p className="mt-2 text-xs text-slate-500">Lihat dokumen terkait</p></div><div className={`flex h-12 w-12 items-center justify-center rounded-xl border transition group-hover:scale-110 ${accent.icon}`}><Icon className="h-6 w-6" aria-hidden="true" /></div></div></button>;
                   })}
                 </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
+                  {statusCards.map((card) => (
+                    <Link
+                      key={card.label}
+                      href={card.href}
+                      className={`block rounded-3xl border bg-[#0b1f14]/60 p-5 shadow-2xl backdrop-blur-md transition ${card.classes}`}
+                    >
+                      <p className="text-xs text-slate-400">{card.label}</p>
+                      <p className={`mt-1 text-2xl font-bold ${card.textClass}`}>{card.value}</p>
+                    </Link>
+                  ))}
+                </div>
+                <DocumentStatsChart documents={documents} />
+                <DocumentStatusPieChart />
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <button type="button" onClick={() => router.push("/contracts?status=draft")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-amber-500/50"><div><h3 className="font-semibold text-white">Dokumen Berstatus Draft</h3><p className="mt-1 text-xs text-slate-400">Menunggu persetujuan atau finalisasi.</p></div><span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-lg font-bold text-amber-400 transition group-hover:scale-105">{draftCount}</span></button>
                   <button type="button" onClick={() => router.push("/contracts?status=expired")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-rose-500/50"><div><h3 className="font-semibold text-white">Dokumen Kedaluwarsa</h3><p className="mt-1 text-xs text-slate-400">Memerlukan pembaruan atau adendum.</p></div><span className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-lg font-bold text-rose-400 transition group-hover:scale-105">{expiredCount}</span></button>
@@ -155,6 +222,12 @@ export default function StatisticsPage() {
             )}
           </div>
         </main>
+        <UploadDocumentModal
+          isOpen={isUploadOpen}
+          onClose={() => setIsUploadOpen(false)}
+          onSuccess={fetchDocuments}
+          secureMode={isSecureMode}
+        />
       </div>
     </div>
   );

@@ -17,12 +17,14 @@ class ActivityLog extends Model
         'entity_id',
         'description',
         'ip_address',
+        'properties',
         'user_agent',
     ];
 
     protected $casts = [
         'user_id'   => 'integer',
         'entity_id' => 'integer',
+        'properties'=>'array',
     ];
 
     public function user(): BelongsTo

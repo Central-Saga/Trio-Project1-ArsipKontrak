@@ -82,27 +82,59 @@ class DocumentVersionController extends Controller
             ->setStatusCode(201);
     }
 
-    public function download(string $documentId, string $versionId)
+    public function download(Document $document, DocumentVersion $version)
     {
-        $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
-
-        if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
-            abort(404, 'Berkas fisik tidak ditemukan di server.');
+        if ($version->document_id !== $document->id) {
+            return response()->json(['message' => 'Versi dokumen tidak ditemukan.'], 404);
         }
 
-        if (!$version->encrypted_at) {
-            return response()->download(
-                Storage::disk('private_encrypted')->path($version->file_path),
-                $version->file_name,
-                ['Content-Type' => $version->mime_type]
-            );
+        $disk = Storage::disk('private_encrypted');
+
+        if (!$disk->exists($version->file_path)) {
+            return $this->missingFileResponse($version->file_name);
         }
 
-        $decryptedContent = $this->decryptPayload(Storage::disk('private_encrypted')->get($version->file_path));
+        $isEncrypted = $version->encrypted_at || str_ends_with($version->file_path, '.enc');
+
+        if (!$isEncrypted) {
+            $filePath = $disk->path($version->file_path);
+            if (!is_readable($filePath)) {
+                return $this->missingFileResponse($version->file_name);
+            }
+
+            return response()->download($filePath, $version->file_name, [
+                'Content-Type' => $version->mime_type ?: 'application/pdf',
+            ]);
+        }
+
+        try {
+            $decryptedContent = $this->decryptPayload($disk->get($version->file_path));
+        } catch (\UnexpectedValueException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
 
         return response()->streamDownload(function () use ($decryptedContent) {
             echo $decryptedContent;
-        }, $version->file_name, ['Content-Type' => $version->mime_type]);
+        }, $version->file_name, [
+            'Content-Type' => $version->mime_type ?: 'application/pdf',
+            'Content-Length' => (string) strlen($decryptedContent),
+        ]);
+    }
+
+    private function missingFileResponse(string $fileName)
+    {
+        $safeFileName = basename($fileName);
+        $dummyContent = sprintf(
+            "PERHATIAN: Berkas fisik untuk dokumen ini (%s) tidak ditemukan di server karena riwayat penghapusan sebelumnya. Silakan unggah ulang versi baru.",
+            $safeFileName
+        );
+
+        return response()->streamDownload(function () use ($dummyContent) {
+            echo $dummyContent;
+        }, 'INFO_FILE_TIDAK_ADA_' . $safeFileName . '.txt', [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Content-Length' => (string) strlen($dummyContent),
+        ]);
     }
 
     public function preview(string $documentId, string $versionId)
@@ -126,8 +158,16 @@ class DocumentVersionController extends Controller
 
     private function decryptPayload(string $payload): string
     {
-        $encryptedPayload = base64_decode($payload);
+        $encryptedPayload = base64_decode($payload, true);
+        if ($encryptedPayload === false) {
+            throw new \UnexpectedValueException('Payload file terenkripsi tidak valid.');
+        }
+
         $ivLength = openssl_cipher_iv_length('aes-256-cbc');
+        if (strlen($encryptedPayload) <= $ivLength) {
+            throw new \UnexpectedValueException('Payload file terenkripsi tidak lengkap.');
+        }
+
         $iv = substr($encryptedPayload, 0, $ivLength);
         $encryptedContent = substr($encryptedPayload, $ivLength);
         $encryptionKey = config('app.key');
@@ -136,6 +176,11 @@ class DocumentVersionController extends Controller
             $encryptionKey = base64_decode(substr($encryptionKey, 7));
         }
 
-        return openssl_decrypt($encryptedContent, 'aes-256-cbc', $encryptionKey, 0, $iv) ?: '';
+        $decryptedContent = openssl_decrypt($encryptedContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
+        if ($decryptedContent === false || $decryptedContent === '') {
+            throw new \UnexpectedValueException('File terenkripsi tidak dapat didekripsi.');
+        }
+
+        return $decryptedContent;
     }
 }

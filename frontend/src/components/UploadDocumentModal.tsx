@@ -42,6 +42,29 @@ export default function UploadDocumentModal({
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
+  const resetForm = () => {
+    setFormData({
+      project_id: "",
+      document_number: "",
+      document_name: "",
+      document_type: "contract",
+      partner: "",
+      document_date: "",
+      effective_date: "",
+      expiry_date: "",
+      status: "draft",
+      description: "",
+      notes: "",
+    });
+    setSelectedFile(null);
+    setErrorMsg("");
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   useEffect(() => {
     if (isOpen) {
       const fetchProjects = async () => {
@@ -112,6 +135,7 @@ export default function UploadDocumentModal({
       await api.post("/documents", payload, {
         headers: { "Content-Type": "multipart/form-data" },
       });
+      resetForm();
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -149,7 +173,7 @@ export default function UploadDocumentModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Tutup modal"
             className="text-emerald-200 hover:text-white transition-colors p-1 rounded-lg hover:bg-emerald-700/50 text-xl leading-none"
           >

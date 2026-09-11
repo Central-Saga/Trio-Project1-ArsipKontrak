@@ -13,13 +13,13 @@ return new class extends Migration
     {
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
-            $table->string('project_code', 50)->inique();
+            $table->string('project_code', 50)->unique();
             $table->string('project_name', 150);
             $table->string('client', 150);
-            $table->text('description')->nullable9();
+            $table->text('description')->nullable();
             $table->date('start_date');
             $table->date('end_date')->nullable();
-            $table->enum('status', ['draft', 'active', 'complated','arived'])->default('draft');
+            $table->enum('status', ['draft', 'active', 'completed','archived'])->default('draft');
             $table->softDeletes();
             $table->timestamps();
         });

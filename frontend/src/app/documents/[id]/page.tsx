@@ -131,11 +131,29 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
   const handleDownloadVersion = async (version: DocumentVersion) => {
     setDownloadingVersionId(version.id);
+    setError(null);
 
     try {
-      const response = await api.get(`/documents/${documentId}/versions/${version.id}/download`, {
+      const baseURL = api.defaults.baseURL || "http://localhost:8000/api";
+      const downloadEndpoint = `${baseURL}/documents/${documentId}/versions/${version.id}/download`;
+      const response = await api.get(downloadEndpoint, {
         responseType: "blob",
       });
+
+      if (response.data.type === "application/json") {
+        const textData = await response.data.text();
+        let errorMessage = "Gagal mengunduh file.";
+
+        try {
+          const errorJson = JSON.parse(textData) as { message?: string };
+          errorMessage = errorJson.message || errorMessage;
+        } catch {
+          // Gunakan pesan umum jika respons bukan JSON yang valid.
+        }
+
+        throw new Error(errorMessage);
+      }
+
       const downloadUrl = URL.createObjectURL(response.data);
       const link = globalThis.document.createElement("a");
       link.href = downloadUrl;
@@ -144,8 +162,17 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       link.click();
       link.remove();
       URL.revokeObjectURL(downloadUrl);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal mengunduh file dokumen.");
+    } catch (err: unknown) {
+      let errorMessage = "Gagal mengunduh file dokumen.";
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === "object" && err !== null && "response" in err) {
+        const responseData = (err as { response?: { data?: { message?: string } } }).response?.data;
+        errorMessage = responseData?.message || errorMessage;
+      }
+
+      alert(errorMessage);
     } finally {
       setDownloadingVersionId(null);
     }
@@ -313,6 +340,11 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </tbody>
             </table>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 p-6 text-center shadow-2xl backdrop-blur-xl">
+          <p className="text-sm font-medium text-slate-300">Pratinjau PDF tidak tersedia</p>
+          <p className="mt-1 text-xs text-slate-500">Silakan unduh berkas atau unggah versi baru untuk melihat dokumen.</p>
         </div>
       </div>
 

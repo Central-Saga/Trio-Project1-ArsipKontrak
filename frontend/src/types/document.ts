@@ -37,6 +37,7 @@ export interface DocumentItem {
   created_by: number;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
   current_version?: DocumentVersion | null;
   versions?: DocumentVersion[];
 }

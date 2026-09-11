@@ -97,10 +97,14 @@ export default function DashboardPage() {
   }, [router, fetchDocuments]);
 
   useEffect(() => {
-    const handleOpenUploadModal = () => setShowUploadModal(true);
+    const handleOpenUploadModal = () => {
+      if (currentUser?.role === "admin") {
+        setShowUploadModal(true);
+      }
+    };
     window.addEventListener("open-upload-modal", handleOpenUploadModal);
     return () => window.removeEventListener("open-upload-modal", handleOpenUploadModal);
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -131,6 +135,8 @@ export default function DashboardPage() {
   };
 
   const handleEdit = (document: DocumentItem) => {
+    if (currentUser?.role !== "admin") return;
+
     setEditingDocument(document);
     setEditError("");
     setEditForm({
@@ -152,7 +158,7 @@ export default function DashboardPage() {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingDocument) return;
+    if (currentUser?.role !== "admin" || !editingDocument) return;
 
     setSavingEdit(true);
     setEditError("");
@@ -168,12 +174,14 @@ export default function DashboardPage() {
   };
 
   const handleDelete = (document: DocumentItem) => {
+    if (currentUser?.role !== "admin") return;
+
     setDeletingDocument(document);
     setError(null);
   };
 
   const confirmDelete = async () => {
-    if (!deletingDocument) return;
+    if (currentUser?.role !== "admin" || !deletingDocument) return;
 
     setDeleting(true);
     try {

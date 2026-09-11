@@ -23,6 +23,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/dashboard/statistics', [DocumentController::class, 'statistics']);
 
         // Endpoint Dokumen & Arsip
+        Route::get('documents/trash', [DocumentController::class, 'trashed']);
+        Route::post('documents/{id}/restore', [DocumentController::class, 'restore']);
         Route::apiResource('documents', DocumentController::class);
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
         Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store']);

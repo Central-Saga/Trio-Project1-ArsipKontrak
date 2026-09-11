@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BarChart3, Eye, FileText, Folder, LayoutDashboard, LogOut, Menu, Plus } from "lucide-react";
+import { ArrowLeft, BarChart3, Eye, FileText, Folder, LayoutDashboard, LogOut, Menu, Plus, RotateCcw, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import { DocumentItem } from "@/types/document";
 import UploadDocumentModal from "@/components/UploadDocumentModal";
@@ -27,6 +27,11 @@ export default function ContractsPage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isTrashOpen, setIsTrashOpen] = useState(false);
+  const [trashedDocuments, setTrashedDocuments] = useState<DocumentItem[]>([]);
+  const [loadingTrash, setLoadingTrash] = useState(false);
+  const [trashError, setTrashError] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
   const [isSecureMode] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +40,17 @@ export default function ContractsPage() {
     try {
       setLoading(true);
       const response = await api.get("/documents");
-      setDocuments(response.data?.data || response.data || []);
+      const rawData = response.data;
+      const items = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : Array.isArray(rawData?.data?.data)
+            ? rawData.data.data
+            : Array.isArray(rawData?.documents)
+              ? rawData.documents
+              : [];
+      setDocuments(items);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal memuat dokumen kontrak dan MoU.");
@@ -43,6 +58,29 @@ export default function ContractsPage() {
       setLoading(false);
     }
   }, []);
+
+  const fetchTrashedDocuments = useCallback(async () => {
+    if (user?.role !== "admin") return;
+
+    try {
+      setLoadingTrash(true);
+      const response = await api.get("/documents/trash");
+      const rawData = response.data;
+      const items = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : Array.isArray(rawData?.data?.data)
+            ? rawData.data.data
+            : [];
+      setTrashedDocuments(items);
+      setTrashError(null);
+    } catch (err: any) {
+      setTrashError(err.response?.data?.message || "Gagal memuat arsip terhapus.");
+    } finally {
+      setLoadingTrash(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user_data") || localStorage.getItem("user");
@@ -76,10 +114,14 @@ export default function ContractsPage() {
   }, []);
 
   useEffect(() => {
-    const handleOpenUploadModal = () => setIsUploadOpen(true);
+    const handleOpenUploadModal = () => {
+      if (user?.role === "admin") {
+        setIsUploadOpen(true);
+      }
+    };
     window.addEventListener("open-upload-modal", handleOpenUploadModal);
     return () => window.removeEventListener("open-upload-modal", handleOpenUploadModal);
-  }, []);
+  }, [user]);
 
   const filteredDocuments = documents.filter((document) => {
     const matchesType = activeTab === "all" || document.document_type.toLowerCase() === activeTab;
@@ -91,6 +133,38 @@ export default function ContractsPage() {
     activeTab !== "all" ? (activeTab === "mou" ? "MoU" : "Kontrak") : null,
     statusFilter ? statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1) : null,
   ].filter(Boolean).join(" - ");
+
+  const statusFilters = [
+    { value: "active", label: "Active" },
+    { value: "draft", label: "Draft" },
+    { value: "expired", label: "Expired" },
+    { value: "terminated", label: "Terminated" },
+  ];
+
+  const handleStatusFilter = (status: string | null) => {
+    setStatusFilter(status);
+  };
+
+  const handleTabChange = (tab: DocumentTab) => {
+    setActiveTab(tab);
+  };
+
+  const handleResetFilter = () => {
+    setActiveTab("all");
+    setStatusFilter(null);
+  };
+
+  const handleRestore = async (id: number) => {
+    try {
+      setRestoringId(id);
+      await api.post(`/documents/${id}/restore`);
+      await Promise.all([fetchDocuments(), fetchTrashedDocuments()]);
+    } catch (err: any) {
+      setTrashError(err.response?.data?.message || "Gagal memulihkan dokumen.");
+    } finally {
+      setRestoringId(null);
+    }
+  };
 
   const statusClasses: Record<string, string> = {
     active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
@@ -187,7 +261,6 @@ export default function ContractsPage() {
             <p className="text-xs text-slate-500">Manajemen dokumen legal</p>
           </div>
           <div ref={profileMenuRef} className="relative flex items-center gap-3">
-            <span className="hidden rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 sm:inline-flex">Secure Mode Active</span>
             <button
               type="button"
               onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
@@ -214,8 +287,8 @@ export default function ContractsPage() {
           </div>
         </header>
 
-        <main className="flex-1 px-6 py-8 md:px-10">
-        <div className="mx-auto max-w-6xl space-y-6">
+        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <button
@@ -234,14 +307,24 @@ export default function ContractsPage() {
           </div>
 
           {user?.role === "admin" && (
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new Event("open-upload-modal"))}
-              className="inline-flex items-center gap-2 self-start rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/50 transition hover:bg-emerald-500 sm:self-auto"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Unggah Dokumen Baru
-            </button>
+            <div className="flex flex-wrap gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new Event("open-upload-modal"))}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/50 transition hover:bg-emerald-500"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                Unggah Dokumen Baru
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsTrashOpen(true); fetchTrashedDocuments(); }}
+                className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20"
+              >
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+                Arsip Terhapus
+              </button>
+            </div>
           )}
         </div>
 
@@ -250,7 +333,7 @@ export default function ContractsPage() {
             <button
               key={tab}
               type="button"
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`rounded-xl border px-4 py-2 text-sm font-medium capitalize transition ${
                 activeTab === tab
                   ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-inner"
@@ -262,10 +345,39 @@ export default function ContractsPage() {
           ))}
         </div>
 
+        <div className="flex flex-wrap items-center gap-2" aria-label="Filter status dokumen">
+          <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Status:</span>
+          <button
+            type="button"
+            onClick={() => handleStatusFilter(null)}
+            className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+              !statusFilter
+                ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                : "border-emerald-500/20 bg-[#0b1f14]/60 text-slate-400 hover:text-emerald-200"
+            }`}
+          >
+            Semua
+          </button>
+          {statusFilters.map((filter) => (
+            <button
+              key={filter.value}
+              type="button"
+              onClick={() => handleStatusFilter(filter.value)}
+              className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                statusFilter === filter.value
+                  ? statusClasses[filter.value]
+                  : "border-emerald-500/20 bg-[#0b1f14]/60 text-slate-400 hover:text-emerald-200"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
         {activeFilterLabel && (
           <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
             <span>Filter aktif: <strong>{activeFilterLabel}</strong></span>
-            <button type="button" onClick={() => router.push("/contracts")} className="text-xs font-semibold text-emerald-400 hover:text-white">Reset filter</button>
+            <button type="button" onClick={handleResetFilter} className="text-xs font-semibold text-emerald-400 hover:text-white">Reset filter</button>
           </div>
         )}
 
@@ -344,6 +456,48 @@ export default function ContractsPage() {
           onSuccess={fetchDocuments}
           secureMode={isSecureMode}
         />
+        {isTrashOpen && user?.role === "admin" && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <div className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-amber-500/30 bg-[#0b1f14]/95 text-slate-100 shadow-2xl backdrop-blur-2xl">
+              <div className="flex items-center justify-between border-b border-amber-500/20 px-6 py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Arsip Terhapus</h2>
+                  <p className="mt-1 text-xs text-slate-400">Pulihkan dokumen yang sebelumnya dihapus.</p>
+                </div>
+                <button type="button" onClick={() => setIsTrashOpen(false)} aria-label="Tutup arsip terhapus" className="p-1 text-xl leading-none text-slate-400 hover:text-white">&times;</button>
+              </div>
+              <div className="max-h-[calc(100vh-10rem)] overflow-y-auto p-6">
+                {loadingTrash ? (
+                  <p className="py-8 text-center text-sm text-slate-400">Memuat arsip terhapus...</p>
+                ) : trashError ? (
+                  <p className="py-8 text-center text-sm text-rose-400">{trashError}</p>
+                ) : trashedDocuments.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-slate-500">Tempat sampah kosong.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {trashedDocuments.map((document) => (
+                      <div key={document.id} className="flex flex-col gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white">{document.document_name}</p>
+                          <p className="mt-1 text-xs text-slate-400">{document.document_number} &middot; Dihapus {document.deleted_at ? new Date(document.deleted_at).toLocaleDateString("id-ID") : "-"}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRestore(document.id)}
+                          disabled={restoringId === document.id}
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                          {restoringId === document.id ? "Memulihkan..." : "Pulihkan"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
