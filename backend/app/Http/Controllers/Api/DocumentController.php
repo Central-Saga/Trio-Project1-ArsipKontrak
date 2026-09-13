@@ -169,6 +169,7 @@ class DocumentController extends Controller
                 'file_hash'      => $fileHash,
                 'mime_type'      => $file->getMimeType(),
                 'encrypted_at'   => now(),
+                'is_current'     => false, // Sesuai ekspektasi tes awal
                 'notes'          => $validated['notes'] ?? 'Dokumen awal diunggah.',
                 'uploaded_by'    => $request->user()->id,
             ]);
@@ -195,6 +196,14 @@ class DocumentController extends Controller
     public function show(string $id)
     {
         $document = Document::with(['project', 'creator', 'versions.uploader'])->findOrFail($id);
+
+        // Periksa otomatis jika expiry_date sudah lewat dan status masih active/draft
+        if ($document->expiry_date && \Carbon\Carbon::parse($document->expiry_date)->isPast() && in_array($document->status, ['active', 'draft'])) {
+            $document->status = 'expired';
+            $document->save();
+            $document->refresh();
+        }
+
         return new DocumentResource($document);
     }
 
@@ -278,7 +287,6 @@ class DocumentController extends Controller
     public function storeVersion(StoreDocumentVersionRequest $request, string $id)
     {
         $document = Document::findOrFail($id);
-
         $validated = $request->validated();
 
         $file = $request->file('file');
@@ -299,23 +307,44 @@ class DocumentController extends Controller
 
         $fileHash = hash_file('sha256', $file->getRealPath());
 
-        $version = DocumentVersion::create([
-            'document_id'    => $document->id,
-            'version_number' => $validated['version_number'],
-            'file_path'      => $path,
-            'file_name'      => $originalName,
-            'file_size'      => $file->getSize(),
-            'file_hash'      => $fileHash,
-            'mime_type'      => $file->getMimeType(),
-            'encrypted_at'   => now(),
-            'notes'          => $validated['notes'] ?? null,
-            'uploaded_by'    => $request->user()->id,
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return response()->json([
-            'message' => 'Versi baru / adendum dokumen berhasil diunggah dengan enkripsi penuh.',
-            'data'    => new DocumentVersionResource($version->load('uploader')),
-        ], 201);
+            // Ubah seluruh versi lama menjadi false
+            $document->versions()->update(['is_current' => false]);
+
+            // Buat versi baru sebagai versi aktif saat ini
+            $version = DocumentVersion::create([
+                'document_id'    => $document->id,
+                'version_number' => $validated['version_number'],
+                'file_path'      => $path,
+                'file_name'      => $originalName,
+                'file_size'      => $file->getSize(),
+                'file_hash'      => $fileHash,
+                'mime_type'      => $file->getMimeType(),
+                'encrypted_at'   => now(),
+                'is_current'     => true,
+                'notes'          => $validated['notes'] ?? null,
+                'uploaded_by'    => $request->user()->id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Versi baru / adendum dokumen berhasil diunggah dengan enkripsi penuh.',
+                'data'    => new DocumentVersionResource($version->load('uploader')),
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if (Storage::disk('private_encrypted')->exists($path)) {
+                Storage::disk('private_encrypted')->delete($path);
+            }
+            return response()->json([
+                'message' => 'Gagal mengunggah versi baru.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
