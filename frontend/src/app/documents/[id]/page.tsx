@@ -45,7 +45,11 @@ interface CurrentUser {
   role: string;
 }
 
-export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function DocumentDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = use(params);
   const documentId = resolvedParams.id;
   const router = useRouter();
@@ -63,7 +67,43 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingVersion, setUploadingVersion] = useState(false);
   const [uploadError, setUploadError] = useState("");
-  const [downloadingVersionId, setDownloadingVersionId] = useState<number | null>(null);
+  const [downloadingVersionId, setDownloadingVersionId] = useState<
+    number | null
+  >(null);
+
+  // PDF Preview States
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+
+  const loadPreview = useCallback(
+    async (verId: number) => {
+      try {
+        setLoadingPreview(true);
+        const baseURL = api.defaults.baseURL || "http://localhost:8000/api";
+        const response = await api.get(
+          `${baseURL}/documents/${documentId}/versions/${verId}/download`,
+          {
+            responseType: "blob",
+          },
+        );
+
+        if (response.data.type === "application/json") {
+          throw new Error("Gagal memuat pratinjau dokumen.");
+        }
+
+        const url = URL.createObjectURL(response.data);
+        setPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      } catch {
+        setPreviewUrl(null);
+      } finally {
+        setLoadingPreview(false);
+      }
+    },
+    [documentId],
+  );
 
   const fetchDocumentData = useCallback(async () => {
     try {
@@ -73,16 +113,22 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         api.get(`/documents/${documentId}/versions`),
       ]);
       setDocument(docRes.data?.data || docRes.data);
-      setVersions(verRes.data?.data || verRes.data);
+
+      const fetchedVersions = verRes.data?.data || verRes.data;
+      setVersions(fetchedVersions);
+      if (fetchedVersions.length > 0) {
+        loadPreview(fetchedVersions[0].id);
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal memuat detail dokumen.");
     } finally {
       setLoading(false);
     }
-  }, [documentId]);
+  }, [documentId, loadPreview]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user_data") || localStorage.getItem("user");
+    const storedUser =
+      localStorage.getItem("user_data") || localStorage.getItem("user");
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
@@ -123,7 +169,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       setNotesInput("");
       fetchDocumentData();
     } catch (err: any) {
-      setUploadError(err.response?.data?.message || "Gagal mengunggah versi baru.");
+      setUploadError(
+        err.response?.data?.message || "Gagal mengunggah versi baru.",
+      );
     } finally {
       setUploadingVersion(false);
     }
@@ -168,7 +216,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       if (err instanceof Error) {
         errorMessage = err.message;
       } else if (typeof err === "object" && err !== null && "response" in err) {
-        const responseData = (err as { response?: { data?: { message?: string } } }).response?.data;
+        const responseData = (
+          err as { response?: { data?: { message?: string } } }
+        ).response?.data;
         errorMessage = responseData?.message || errorMessage;
       }
 
@@ -186,7 +236,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       terminated: "bg-slate-800 text-slate-400 border-slate-700",
     };
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colors[status?.toLowerCase()] || colors.draft}`}>
+      <span
+        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colors[status?.toLowerCase()] || colors.draft}`}
+      >
         {status?.toUpperCase()}
       </span>
     );
@@ -203,7 +255,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   if (error || !document) {
     return (
       <div className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] flex flex-col items-center justify-center gap-4">
-        <div className="text-rose-400 text-sm font-medium">{error || "Dokumen tidak ditemukan."}</div>
+        <div className="text-rose-400 text-sm font-medium">
+          {error || "Dokumen tidak ditemukan."}
+        </div>
         <button
           onClick={() => router.push("/")}
           className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700"
@@ -248,42 +302,63 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                   {document.document_type}
                 </span>
               </div>
-              <h1 className="text-xl font-bold text-white mt-2">{document.document_name}</h1>
+              <h1 className="text-xl font-bold text-white mt-2">
+                {document.document_name}
+              </h1>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
             <div className="space-y-1">
-              <span className="text-slate-400 font-medium">Pihak Rekanan (Partner)</span>
-              <div className="font-semibold text-slate-200 text-sm">{document.partner}</div>
+              <span className="text-slate-400 font-medium">
+                Pihak Rekanan (Partner)
+              </span>
+              <div className="font-semibold text-slate-200 text-sm">
+                {document.partner}
+              </div>
             </div>
             <div className="space-y-1">
-              <span className="text-slate-400 font-medium">Project Terkait</span>
-                <div className="font-semibold text-slate-200 text-sm">
-                {document.project ? `[${document.project.project_code}] ${document.project.project_name}` : "-"}
+              <span className="text-slate-400 font-medium">
+                Project Terkait
+              </span>
+              <div className="font-semibold text-slate-200 text-sm">
+                {document.project
+                  ? `[${document.project.project_code}] ${document.project.project_name}`
+                  : "-"}
               </div>
             </div>
             <div className="space-y-1">
               <span className="text-slate-400 font-medium">Dibuat Oleh</span>
-              <div className="font-semibold text-slate-200 text-sm">{document.creator?.name || "Administrator"}</div>
+              <div className="font-semibold text-slate-200 text-sm">
+                {document.creator?.name || "Administrator"}
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800 text-xs">
             <div>
-              <span className="text-slate-500">Tanggal Dokumen:</span> <strong className="text-slate-300">{document.document_date}</strong>
+              <span className="text-slate-500">Tanggal Dokumen:</span>{" "}
+              <strong className="text-slate-300">
+                {document.document_date}
+              </strong>
             </div>
             <div>
-              <span className="text-slate-500">Tanggal Efektif:</span> <strong className="text-slate-300">{document.effective_date}</strong>
+              <span className="text-slate-500">Tanggal Efektif:</span>{" "}
+              <strong className="text-slate-300">
+                {document.effective_date}
+              </strong>
             </div>
             <div>
-              <span className="text-slate-500">Tanggal Berakhir:</span> <strong className="text-rose-400">{document.expiry_date}</strong>
+              <span className="text-slate-500">Tanggal Berakhir:</span>{" "}
+              <strong className="text-rose-400">{document.expiry_date}</strong>
             </div>
           </div>
 
           {document.description && (
             <div className="pt-4 border-t border-slate-800 text-xs space-y-1">
-              <span className="text-slate-400 font-medium">Deskripsi / Catatan Ruang Lingkup:</span>
+              <span className="text-slate-400 font-medium">
+                Deskripsi / Catatan Ruang Lingkup:
+              </span>
               <p className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 p-3 leading-relaxed text-emerald-100/80">
                 {document.description}
               </p>
@@ -295,8 +370,12 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         <div className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 shadow-2xl backdrop-blur-xl">
           <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
             <div>
-              <h2 className="font-semibold text-slate-200 text-sm">Riwayat Versi Dokumen & Berkas</h2>
-              <p className="text-xs text-slate-500">Setiap perubahan berkas tercatat aman dengan SHA-256 Checksum.</p>
+              <h2 className="font-semibold text-slate-200 text-sm">
+                Riwayat Versi Dokumen & Berkas
+              </h2>
+              <p className="text-xs text-slate-500">
+                Setiap perubahan berkas tercatat aman dengan SHA-256 Checksum.
+              </p>
             </div>
             <span className="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg font-medium">
               {versions.length} Versi Tersedia
@@ -317,14 +396,28 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </thead>
               <tbody className="divide-y divide-slate-800/60">
                 {versions.map((ver) => (
-                  <tr key={ver.id} className="transition hover:bg-emerald-500/5">
-                    <td className="px-6 py-4 font-bold text-emerald-600">{ver.version_number}</td>
-                    <td className="px-6 py-4 font-medium text-slate-200">{ver.file_name}</td>
-                    <td className="px-6 py-4 font-mono text-slate-500 text-[11px] truncate max-w-[200px]" title={ver.file_hash}>
+                  <tr
+                    key={ver.id}
+                    className="transition hover:bg-emerald-500/5"
+                  >
+                    <td className="px-6 py-4 font-bold text-emerald-600">
+                      {ver.version_number}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-slate-200">
+                      {ver.file_name}
+                    </td>
+                    <td
+                      className="px-6 py-4 font-mono text-slate-500 text-[11px] truncate max-w-[200px]"
+                      title={ver.file_hash}
+                    >
                       {ver.file_hash}
                     </td>
-                    <td className="px-6 py-4 text-slate-400">{ver.notes || "-"}</td>
-                    <td className="px-6 py-4 text-slate-300">{ver.uploader?.name || "Admin"}</td>
+                    <td className="px-6 py-4 text-slate-400">
+                      {ver.notes || "-"}
+                    </td>
+                    <td className="px-6 py-4 text-slate-300">
+                      {ver.uploader?.name || "Admin"}
+                    </td>
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
@@ -332,7 +425,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                         disabled={downloadingVersionId === ver.id}
                         className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-medium rounded-lg border border-emerald-500/20 transition"
                       >
-                        {downloadingVersionId === ver.id ? "Mengunduh..." : "Unduh PDF"}
+                        {downloadingVersionId === ver.id
+                          ? "Mengunduh..."
+                          : "Unduh PDF"}
                       </button>
                     </td>
                   </tr>
@@ -342,9 +437,50 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 p-6 text-center shadow-2xl backdrop-blur-xl">
-          <p className="text-sm font-medium text-slate-300">Pratinjau PDF tidak tersedia</p>
-          <p className="mt-1 text-xs text-slate-500">Silakan unduh berkas atau unggah versi baru untuk melihat dokumen.</p>
+        {/* PDF Viewer Interaktif */}
+        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+            <div>
+              <h2 className="font-semibold text-slate-200 text-sm">
+                Pratinjau Dokumen PDF
+              </h2>
+              <p className="text-xs text-slate-500">
+                Menampilkan isi berkas kontrak secara langsung.
+              </p>
+            </div>
+            {versions.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Pilih Versi:</span>
+                <select
+                  onChange={(e) => loadPreview(Number(e.target.value))}
+                  className="bg-[#07140c] border border-emerald-500/30 text-xs text-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-400"
+                >
+                  {versions.map((ver, idx) => (
+                    <option key={ver.id} value={ver.id}>
+                      Versi {ver.version_number} {idx === 0 ? "(Terbaru)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {loadingPreview ? (
+            <div className="h-[450px] flex items-center justify-center text-xs text-slate-400">
+              Memuat pratinjau berkas PDF...
+            </div>
+          ) : previewUrl ? (
+            <iframe
+              src={previewUrl}
+              className="w-full h-[650px] rounded-xl border border-emerald-500/20 bg-slate-900"
+              title="PDF Viewer"
+            />
+          ) : (
+            <div className="text-center py-12 text-xs text-slate-500">
+              Pratinjau PDF tidak tersedia atau gagal dimuat. Silakan gunakan
+              tombol unduh di atas.
+            </div>
+          )}
         </div>
       </div>
 
@@ -353,8 +489,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md space-y-4 rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/90 p-6 text-slate-100 shadow-[0_0_50px_rgba(4,47,27,0.5)] backdrop-blur-2xl">
             <div className="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-              <h3 className="text-base font-bold text-white">Unggah Versi Baru / Adendum</h3>
-              <button onClick={() => setShowNewVersionModal(false)} className="text-slate-400 hover:text-slate-600 text-lg">
+              <h3 className="text-base font-bold text-white">
+                Unggah Versi Baru / Adendum
+              </h3>
+              <button
+                onClick={() => setShowNewVersionModal(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg"
+              >
                 &times;
               </button>
             </div>
@@ -367,7 +508,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
             <form onSubmit={handleUploadVersion} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Nomor Versi (misal: v1.1 atau v2.0)</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Nomor Versi (misal: v1.1 atau v2.0)
+                </label>
                 <input
                   type="text"
                   required
@@ -378,7 +521,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Berkas PDF Baru (Max 20MB)</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Berkas PDF Baru (Max 20MB)
+                </label>
                 <input
                   type="file"
                   accept=".pdf"
@@ -389,7 +534,9 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Catatan Revisi / Adendum (Opsional)</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-1">
+                  Catatan Revisi / Adendum (Opsional)
+                </label>
                 <textarea
                   rows={2}
                   value={notesInput}
