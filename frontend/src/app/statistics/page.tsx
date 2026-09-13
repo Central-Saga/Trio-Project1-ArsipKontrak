@@ -214,10 +214,6 @@ export default function StatisticsPage() {
                 </div>
                 <DocumentStatsChart documents={documents} />
                 <DocumentStatusPieChart />
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <button type="button" onClick={() => router.push("/contracts?status=draft")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-amber-500/50"><div><h3 className="font-semibold text-white">Dokumen Berstatus Draft</h3><p className="mt-1 text-xs text-slate-400">Menunggu persetujuan atau finalisasi.</p></div><span className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-lg font-bold text-amber-400 transition group-hover:scale-105">{draftCount}</span></button>
-                  <button type="button" onClick={() => router.push("/contracts?status=expired")} className="group flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/60 p-6 text-left shadow-2xl backdrop-blur-md transition hover:border-rose-500/50"><div><h3 className="font-semibold text-white">Dokumen Kedaluwarsa</h3><p className="mt-1 text-xs text-slate-400">Memerlukan pembaruan atau adendum.</p></div><span className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-lg font-bold text-rose-400 transition group-hover:scale-105">{expiredCount}</span></button>
-                </div>
               </>
             )}
           </div>

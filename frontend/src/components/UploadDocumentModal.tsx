@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api from "@/lib/api";
+import { documentSchema } from "@/lib/documentSchema";
 
 interface ProjectItem {
   id: number;
@@ -116,19 +117,31 @@ export default function UploadDocumentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
-      setErrorMsg("Silakan pilih file PDF kontrak/MoU.");
+    setErrorMsg("");
+
+    // Validasi menggunakan Zod schema
+    const validationResult = documentSchema.safeParse({
+      ...formData,
+      file: selectedFile,
+    });
+
+    if (!validationResult.success) {
+      const firstError =
+        validationResult.error.issues[0]?.message ||
+        "Mohon periksa kembali input formulir.";
+      setErrorMsg(firstError);
       return;
     }
 
     setSubmitting(true);
-    setErrorMsg("");
 
     const payload = new FormData();
     Object.entries(formData).forEach(([key, val]) => {
       payload.append(key, val);
     });
-    payload.append("file", selectedFile);
+    if (selectedFile) {
+      payload.append("file", selectedFile);
+    }
     payload.append("secure_mode", secureMode ? "1" : "0");
 
     try {
@@ -323,7 +336,7 @@ export default function UploadDocumentModal({
             </label>
             <div className="mt-1 flex justify-center px-6 pt-3 pb-4 border-2 border-emerald-500/20 border-dashed rounded-xl hover:border-emerald-400 transition-colors bg-[#07140c]/60">
               <div className="space-y-1 text-center">
-                  <svg
+                <svg
                   className="mx-auto h-9 w-9 text-emerald-400/60"
                   stroke="currentColor"
                   fill="none"
