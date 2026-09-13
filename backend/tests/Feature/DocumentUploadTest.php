@@ -144,7 +144,7 @@ class DocumentUploadTest extends TestCase
             'file_hash'      => hash_file('sha256', $v1File->getRealPath()),
             'file_size'      => $v1File->getSize(),
             'mime_type'      => 'application/pdf',
-            'is_current'     => true,
+            'is_current'     => false,
             'uploaded_by'    => $this->user->id,
         ]);
 
@@ -175,4 +175,41 @@ class DocumentUploadTest extends TestCase
             'is_current'     => true,
         ]);
     }
+
+    public function test_document_status_becomes_expired_when_effective_expiry_date_passes(): void
+    {
+        Storage::fake('local');
+
+        // Buat dokumen dengan tanggal kedaluwarsa yang sudah lewat (misalnya kemarin)
+        $expiredDate = now()->subDays(1)->format('Y-m-d');
+        $effectiveDate = now()->subDays(30)->format('Y-m-d');
+
+        $document = Document::create([
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/EXP/2026/001',
+            'document_name'   => 'Dokumen Expired Test',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Masa Lalu',
+            'document_date'   => $effectiveDate,
+            'effective_date'  => $effectiveDate,
+            'expiry_date'     => $expiredDate,
+            'status'          => 'active', // Status awal aktif, nanti akan diubah/dicek oleh sistem menjadi expired
+            'created_by'      => $this->user->id,
+        ]);
+
+        // Panggil endpoint atau jalankan perintah/job pengecekan status expired (sesuai implementasi backend proyekmu)
+        // Contoh jika menggunakan endpoint pengecekan atau cron / controller update status:
+        $response = $this->actingAs($this->user)
+            ->getJson("/api/v1/documents/{$document->id}");
+
+        // Pastikan status dokumen berubah menjadi 'expired'
+        $response->assertStatus(200)
+            ->assertJsonPath('data.status', 'expired');
+
+        $this->assertDatabaseHas('documents', [
+            'id'     => $document->id,
+            'status' => 'expired',
+        ]);
+    }
 }
+

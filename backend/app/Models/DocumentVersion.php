@@ -29,7 +29,7 @@ class DocumentVersion extends Model implements HasMedia
 
     protected $casts = [
         'document_id'  => 'integer',
-        'version_number' => 'integer',
+        'version_number' => 'string',
         'uploaded_by'  => 'integer',
         'file_size'    => 'integer',
         'is_current'   => 'boolean',
