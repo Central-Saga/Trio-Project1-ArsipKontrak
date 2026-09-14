@@ -26,18 +26,23 @@ Route::prefix('v1')->group(function () {
         // Endpoint Dokumen & Arsip
         Route::get('documents/trash', [DocumentController::class, 'trashed']);
         Route::post('documents/{id}/restore', [DocumentController::class, 'restore']);
+
+        // TAMBAHAN: Rute khusus preview & download dokumen (Harus diletakkan di atas apiResource)
+        Route::get('documents/{id}/preview', [DocumentController::class, 'preview']);
+        Route::get('documents/{id}/download', [DocumentController::class, 'download']);
+
         Route::apiResource('documents', DocumentController::class);
+        
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
-        Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store']);
-        Route::get('documents/{document}/versions/{version}/download', [DocumentVersionController::class, 'download']);
-        Route::get('documents/{document}/versions/{version}/preview', [DocumentVersionController::class, 'preview']);
+        // PERBAIKAN: Arahkan post versions ke DocumentController karena method storeVersion ada di sana
+        Route::post('documents/{document}/versions', [DocumentController::class, 'storeVersion']);
 
         // List Project untuk Dropdown Upload
         Route::get('/projects', function () {
             return response()->json(Project::select('id', 'project_name', 'project_code')->get());
         });
 
-        //  Rute log aktivitas untuk admin (Dipindah ke luar fungsi projects agar sejajar dan bersih)
+        // Rute log aktivitas untuk admin
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
     });
 });

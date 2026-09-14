@@ -18,9 +18,9 @@ import {
   ShieldOff,
   Trash2,
 } from "lucide-react";
-import api from "@/lib/api";
-import { DocumentItem } from "@/types/document";
-import UploadDocumentModal from "@/components/UploadDocumentModal";
+import api from "../lib/api";
+import { DocumentItem } from "../types/document";
+import UploadDocumentModal from "../components/UploadDocumentModal";
 
 interface CurrentUser {
   id: number;
@@ -41,6 +41,13 @@ export default function DashboardPage() {
   const [isSecureMode, setIsSecureMode] = useState(true);
   const [loading, setLoading] = useState(true);
   const [, setError] = useState<string | null>(null);
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteSuccessPopup, setDeleteSuccessPopup] = useState(false);
+  const [documentToDelete, setDocumentToDelete] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -95,7 +102,7 @@ export default function DashboardPage() {
     try {
       await api.post("/logout");
     } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
+      // Tetap bersihkan sesi lokal
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -105,14 +112,28 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus dokumen ini?")) {
-      try {
-        await api.delete(`/documents/${id}`);
+  const confirmDelete = (doc: DocumentItem) => {
+    setDocumentToDelete({
+      id: doc.id,
+      name: doc.title || doc.document_name || doc.document_number,
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const executeDelete = async () => {
+    if (!documentToDelete) return;
+    try {
+      await api.delete(`/documents/${documentToDelete.id}`);
+      setDeleteModalOpen(false);
+
+      setDeleteSuccessPopup(true);
+      setTimeout(() => {
+        setDeleteSuccessPopup(false);
+        setDocumentToDelete(null);
         fetchDocuments();
-      } catch (err: any) {
-        alert(err.response?.data?.message || "Gagal menghapus dokumen.");
-      }
+      }, 1500);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Gagal menghapus dokumen.");
     }
   };
 
@@ -138,96 +159,191 @@ export default function DashboardPage() {
   ).length;
 
   return (
-    <div className="flex min-h-screen bg-slate-50 text-slate-900">
-      {/* Sidebar */}
+    <div className="flex min-h-screen bg-slate-50 text-slate-950">
+      {deleteSuccessPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="w-72 rounded-2xl bg-white p-5 text-center shadow-2xl border border-slate-100 transition-all transform animate-in zoom-in-95 duration-200">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth="2.5"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4.5 12.75l6 6 9-13.5"
+                />
+              </svg>
+            </div>
+            <h3 className="text-base font-bold text-slate-900">
+              Dokumen Dihapus!
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Arsip berhasil dihapus dari sistem.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar dengan Kurva Transisi Halus & Fade Text */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}
+        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:flex ${
+          isSidebarOpen ? "w-64" : "w-20"
+        }`}
       >
         <div>
           <div
-            className={`mb-8 flex items-center ${isSidebarOpen ? "justify-between" : "justify-center"}`}
+            className={`mb-8 flex items-center transition-all duration-300 ${
+              isSidebarOpen ? "justify-between" : "justify-center"
+            }`}
           >
-            {isSidebarOpen && (
-              <div className="flex min-w-0 items-center gap-2 px-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-md shadow-emerald-600/20">
-                  <Folder className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <span className="truncate font-bold tracking-wider text-slate-900">
-                  SAGA ARSIP
-                </span>
+            <div
+              className={`flex min-w-0 items-center gap-2 px-2 overflow-hidden transition-all duration-300 ${
+                isSidebarOpen
+                  ? "opacity-100 max-w-[200px]"
+                  : "opacity-0 max-w-0"
+              }`}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-md shadow-emerald-600/20 transition-transform duration-300 hover:scale-105">
+                <Folder className="h-5 w-5" aria-hidden="true" />
               </div>
-            )}
+              <span className="truncate font-bold tracking-wider text-slate-900">
+                SAGA ARSIP
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => setIsSidebarOpen((isOpen) => !isOpen)}
               aria-label="Toggle sidebar"
-              className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              className="rounded-lg p-2 text-slate-500 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 hover:scale-105"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
-          <nav className="space-y-1 text-sm" aria-label="Navigasi utama">
+
+          <nav className="space-y-1.5 text-sm" aria-label="Navigasi utama">
             <button
               type="button"
               onClick={() => router.push("/")}
               title="Dashboard"
-              className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`group flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 transition-all duration-200 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
               <LayoutDashboard
-                className="h-5 w-5 shrink-0"
+                className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
                 aria-hidden="true"
               />
-              {isSidebarOpen && <span>Dashboard</span>}
+              <span
+                className={`whitespace-nowrap transition-all duration-300 ${
+                  isSidebarOpen
+                    ? "opacity-100 max-w-[150px]"
+                    : "opacity-0 max-w-0 overflow-hidden"
+                }`}
+              >
+                Dashboard
+              </span>
             </button>
+
             <button
               type="button"
               onClick={() => router.push("/contracts")}
               title="Kontrak & MoU"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
-              <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {isSidebarOpen && <span>Kontrak &amp; MoU</span>}
+              <FileText
+                className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                aria-hidden="true"
+              />
+              <span
+                className={`whitespace-nowrap transition-all duration-300 ${
+                  isSidebarOpen
+                    ? "opacity-100 max-w-[150px]"
+                    : "opacity-0 max-w-0 overflow-hidden"
+                }`}
+              >
+                Kontrak &amp; MoU
+              </span>
             </button>
+
             <button
               type="button"
               onClick={() => router.push("/statistics")}
               title="Ringkasan"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
-              <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {isSidebarOpen && <span>Ringkasan</span>}
+              <BarChart3
+                className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                aria-hidden="true"
+              />
+              <span
+                className={`whitespace-nowrap transition-all duration-300 ${
+                  isSidebarOpen
+                    ? "opacity-100 max-w-[150px]"
+                    : "opacity-0 max-w-0 overflow-hidden"
+                }`}
+              >
+                Ringkasan
+              </span>
             </button>
+
             {user?.role === "admin" && (
               <button
                 type="button"
                 onClick={() => router.push("/admin/logs")}
                 title="Log Aktivitas"
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
+                  isSidebarOpen ? "" : "justify-center"
+                }`}
               >
-                <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {isSidebarOpen && <span>Log Aktivitas</span>}
+                <ShieldAlert
+                  className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                  aria-hidden="true"
+                />
+                <span
+                  className={`whitespace-nowrap transition-all duration-300 ${
+                    isSidebarOpen
+                      ? "opacity-100 max-w-[150px]"
+                      : "opacity-0 max-w-0 overflow-hidden"
+                  }`}
+                >
+                  Log Aktivitas
+                </span>
               </button>
             )}
           </nav>
         </div>
+
+        {/* Tombol Keluar (Hanya Ikon) */}
         <div className="border-t border-slate-200 pt-4">
           <button
             type="button"
             onClick={handleLogout}
             title="Keluar"
-            className={`flex w-full items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-left font-medium text-rose-600 transition hover:bg-rose-100 ${isSidebarOpen ? "" : "justify-center"}`}
+            className="group flex w-full items-center justify-center rounded-xl border border-rose-200 bg-rose-50 py-3 text-rose-600 transition-all duration-200 hover:bg-rose-100 hover:scale-[1.02]"
           >
-            <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {isSidebarOpen && <span>Keluar</span>}
+            <LogOut
+              className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+              aria-hidden="true"
+            />
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content dengan Transisi Margin Fleksibel */}
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          isSidebarOpen ? "md:ml-64" : "md:ml-20"
+        }`}
       >
-        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+        <header className="relative z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm transition-all duration-200">
           <div className="flex items-center gap-4 flex-1 max-w-md">
             <div className="relative w-full">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
@@ -238,7 +354,7 @@ export default function DashboardPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Cari nomor dokumen atau rekanan..."
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm text-slate-900 placeholder-slate-400 transition-all duration-200 focus:border-emerald-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
           </div>
@@ -248,7 +364,7 @@ export default function DashboardPage() {
               type="button"
               onClick={() => setIsSecureMode(!isSecureMode)}
               title="Klik untuk mengaktifkan/menonaktifkan Secure Mode"
-              className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all ${
+              className={`hidden sm:inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-all duration-200 ${
                 isSecureMode
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                   : "bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200"
@@ -256,7 +372,7 @@ export default function DashboardPage() {
             >
               {isSecureMode ? (
                 <>
-                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
                   <span>Secure Mode Active</span>
                 </>
               ) : (
@@ -271,7 +387,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setIsUploadOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition-all duration-200 hover:bg-emerald-500 hover:scale-[1.02] active:scale-95"
               >
                 <Plus className="h-4 w-4" /> Unggah
               </button>
@@ -282,14 +398,14 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
                 aria-expanded={isProfileMenuOpen}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition-all duration-200 hover:bg-emerald-500 hover:scale-105"
               >
                 {user?.name?.slice(0, 2).toUpperCase() || "AD"}
               </button>
 
               {isProfileMenuOpen && (
                 <div
-                  className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-slate-800 shadow-xl"
+                  className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-slate-800 shadow-xl animate-in fade-in zoom-in-95 duration-150"
                   role="menu"
                 >
                   <div className="mb-1 border-b border-slate-100 px-4 py-3">
@@ -305,7 +421,7 @@ export default function DashboardPage() {
                       setIsProfileMenuOpen(false);
                       router.push("/profile");
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-emerald-600"
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-emerald-600"
                   >
                     Profil Saya
                   </button>
@@ -316,7 +432,7 @@ export default function DashboardPage() {
                       setIsProfileMenuOpen(false);
                       router.push("/contracts");
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-emerald-600"
+                    className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-emerald-600"
                   >
                     Kontrak &amp; MoU
                   </button>
@@ -328,7 +444,7 @@ export default function DashboardPage() {
                         setIsProfileMenuOpen(false);
                         handleLogout();
                       }}
-                      className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                      className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
                     >
                       Keluar
                     </button>
@@ -351,9 +467,8 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            {/* Stats Cards */}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Total Arsip
                 </p>
@@ -361,7 +476,7 @@ export default function DashboardPage() {
                   {totalArsip}
                 </p>
               </div>
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-emerald-300">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
                   Dokumen Aktif
                 </p>
@@ -369,7 +484,7 @@ export default function DashboardPage() {
                   {activeCount}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Total Kontrak
                 </p>
@@ -379,7 +494,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Document List */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">
@@ -434,7 +548,7 @@ export default function DashboardPage() {
                       filteredDocuments.map((doc) => (
                         <tr
                           key={doc.id}
-                          className="hover:bg-slate-50 transition-colors"
+                          className="hover:bg-slate-50/80 transition-colors"
                         >
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2.5">
@@ -444,7 +558,9 @@ export default function DashboardPage() {
                                     ? "bg-emerald-500"
                                     : doc.status.toLowerCase() === "draft"
                                       ? "bg-amber-500"
-                                      : "bg-slate-400"
+                                      : doc.status.toLowerCase() === "expired"
+                                        ? "bg-rose-500"
+                                        : "bg-slate-400"
                                 }`}
                                 title={`Status: ${doc.status}`}
                               />
@@ -471,27 +587,30 @@ export default function DashboardPage() {
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end gap-1">
                               <button
+                                type="button"
                                 onClick={() =>
                                   router.push(`/documents/${doc.id}`)
                                 }
                                 title="Detail Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-150 hover:scale-110"
                               >
                                 <Eye className="h-4 w-4" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() =>
                                   router.push(`/documents/${doc.id}/edit`)
                                 }
                                 title="Edit Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-150 hover:scale-110"
                               >
                                 <Pencil className="h-4 w-4" />
                               </button>
                               <button
-                                onClick={() => handleDelete(doc.id)}
+                                type="button"
+                                onClick={() => confirmDelete(doc)}
                                 title="Hapus Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150 hover:scale-110"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </button>
@@ -506,6 +625,48 @@ export default function DashboardPage() {
             </div>
           </div>
         </main>
+
+        {deleteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    Konfirmasi Hapus Dokumen
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Tindakan ini akan menghapus dokumen dan seluruh riwayat
+                    versinya.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 mb-5 text-sm font-medium text-slate-800 truncate">
+                {documentToDelete?.name}
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all duration-150"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={executeDelete}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-rose-600/20 hover:bg-rose-500 transition-all duration-150 hover:scale-[1.02]"
+                >
+                  Ya, Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <UploadDocumentModal
           isOpen={isUploadOpen}
