@@ -27,8 +27,12 @@ export interface DocumentItem {
   project_id: number;
   document_number: string;
   document_name: string;
+  title?: string; // Ditambahkan agar sinkron dengan komponen Dashboard yang memanggil doc.title
   document_type: DocumentType;
   partner: string;
+  counterpart_name?: string;
+  start_date?: string;
+  end_date?: string;
   document_date: string;
   effective_date: string;
   expiry_date: string;
