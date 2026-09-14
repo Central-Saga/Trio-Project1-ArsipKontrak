@@ -167,7 +167,7 @@ class DocumentController extends Controller
                 'file_hash'      => $fileHash,
                 'mime_type'      => $file->getMimeType(),
                 'encrypted_at'   => now(),
-                'is_current'     => false, // Sesuai ekspektasi tes awal
+                'is_current'     => false,
                 'notes'          => $validated['notes'] ?? 'Dokumen awal diunggah.',
                 'uploaded_by'    => $request->user()->id,
             ]);
@@ -234,11 +234,18 @@ class DocumentController extends Controller
     }
 
     /**
-     * Hapus dokumen beserta seluruh versi berkasnya.
+     * Hapus dokumen beserta seluruh versi berkasnya dengan validasi akses.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
         $document = Document::with('versions')->findOrFail($id);
+
+        // Validasi Role-Based Access Control: Hanya pembuat dokumen atau admin yang diizinkan menghapus
+        if ($document->created_by !== $request->user()->id && $request->user()->role !== 'admin') {
+            return response()->json([
+                'message' => 'Unauthorized action.'
+            ], 403);
+        }
 
         try {
             DB::beginTransaction();
