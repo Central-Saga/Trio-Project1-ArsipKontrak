@@ -22,19 +22,32 @@ class Document extends Model
         'document_date',
         'effective_date',
         'expiry_date',
+        'start_date',
+        'contract_value',
+        'is_active',
         'status',
         'description',
         'created_by',
     ];
 
-    protected $casts = [
-        'project_id'     => 'integer',
-        'created_by'     => 'integer',
-        'document_date'  => 'date',
-        'effective_date' => 'date',
-        'expiry_date'    => 'date',
-        'deleted_at'     => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'project_id'     => 'integer',
+            'created_by'     => 'integer',
+            'document_date'  => 'date',
+            'effective_date' => 'date',
+            'expiry_date'    => 'date',
+            'start_date'     => 'date',
+            'contract_value' => 'decimal:2',
+            'is_active'      => 'boolean',
+        ];
+    }
 
     public function project(): BelongsTo
     {
