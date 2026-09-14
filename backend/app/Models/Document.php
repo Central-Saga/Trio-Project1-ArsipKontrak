@@ -22,6 +22,9 @@ class Document extends Model
         'document_date',
         'effective_date',
         'expiry_date',
+        'start_date',
+        'contract_value',
+        'is_active',
         'status',
         'description',
         'created_by',
@@ -40,6 +43,9 @@ class Document extends Model
             'document_date'  => 'date',
             'effective_date' => 'date',
             'expiry_date'    => 'date',
+            'start_date'     => 'date',
+            'contract_value' => 'decimal:2',
+            'is_active'      => 'boolean',
         ];
     }
 
