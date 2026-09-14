@@ -24,6 +24,12 @@ class AuthController extends Controller
                 'email' => ['Kredensial yang diberikan tidak cocok dengan data kami.'],
             ]);
         }
+        // PENCATATAN LOG LOGIN DI SINI
+        \App\Models\ActivityLog::record(
+            userId: $user->id,
+            action: 'LOGIN',
+            description: "Pengguna {$user->name} ({$user->role}) berhasil masuk ke sistem."
+        );
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
