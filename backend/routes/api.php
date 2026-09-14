@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentVersionController;
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -35,5 +36,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/projects', function () {
             return response()->json(Project::select('id', 'project_name', 'project_code')->get());
         });
+
+        //  Rute log aktivitas untuk admin (Dipindah ke luar fungsi projects agar sejajar dan bersih)
+        Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
     });
 });

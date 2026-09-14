@@ -191,9 +191,23 @@ class DocumentController extends Controller
     /**
      * Tampilkan detail dokumen spesifik beserta versinya.
      */
+    /**
+     * Tampilkan detail dokumen spesifik beserta versinya.
+     */
     public function show(string $id)
     {
         $document = Document::with(['project', 'creator', 'versions.uploader'])->findOrFail($id);
+
+        //  AKTIVITAS PENGGUNA (TERUTAMA VIEWER) SAAT MELIHAT DOKUMEN
+        $user = request()->user();
+        if ($user) {
+            \App\Models\ActivityLog::record(
+                userId: $user->id,
+                action: 'VIEW_DOCUMENT',
+                description: "Pengguna {$user->name} ({$user->role}) melihat detail dokumen: {$document->document_name}",
+                documentId: $document->id
+            );
+        }
 
         // Periksa otomatis jika expiry_date sudah lewat dan status masih active/draft
         if ($document->expiry_date && \Carbon\Carbon::parse($document->expiry_date)->isPast() && in_array($document->status, ['active', 'draft'])) {
@@ -204,7 +218,6 @@ class DocumentController extends Controller
 
         return new DocumentResource($document);
     }
-
     /**
      * Perbarui informasi/metadata dokumen.
      */
