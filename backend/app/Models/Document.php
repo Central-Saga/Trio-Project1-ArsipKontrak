@@ -27,14 +27,21 @@ class Document extends Model
         'created_by',
     ];
 
-    protected $casts = [
-        'project_id'     => 'integer',
-        'created_by'     => 'integer',
-        'document_date'  => 'date',
-        'effective_date' => 'date',
-        'expiry_date'    => 'date',
-        'deleted_at'     => 'datetime',
-    ];
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'project_id'     => 'integer',
+            'created_by'     => 'integer',
+            'document_date'  => 'date',
+            'effective_date' => 'date',
+            'expiry_date'    => 'date',
+        ];
+    }
 
     public function project(): BelongsTo
     {
