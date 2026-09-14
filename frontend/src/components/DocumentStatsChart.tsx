@@ -36,40 +36,72 @@ export default function DocumentStatsChart({ documents }: Props) {
     month,
     documents: documents.filter((document) => {
       const createdAt = new Date(document.created_at);
-      return createdAt.getFullYear() === currentYear && createdAt.getMonth() === index;
+      return (
+        createdAt.getFullYear() === currentYear &&
+        createdAt.getMonth() === index
+      );
     }).length,
   }));
 
   return (
-    <section className="space-y-4 rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/60 p-6 shadow-[0_8px_32px_0_rgba(0,20,10,0.37)] backdrop-blur-2xl">
+    <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-sm font-bold text-white">Statistik Arsip Dokumen</h2>
-          <p className="mt-1 text-xs text-slate-400">Jumlah dokumen yang diunggah per bulan</p>
+          <h2 className="text-sm font-bold text-slate-900">
+            Statistik Arsip Dokumen
+          </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            Jumlah dokumen yang diunggah per bulan
+          </p>
         </div>
-        <span className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-400">
+        <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
           Tahun {currentYear}
         </span>
       </div>
 
       <div className="h-72 w-full pt-4">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={monthlyCounts} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#064e3b" vertical={false} />
-            <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis allowDecimals={false} stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+          <BarChart
+            data={monthlyCounts}
+            margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e2e8f0"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="month"
+              stroke="#64748b"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              stroke="#64748b"
+              fontSize={12}
+              tickLine={false}
+              axisLine={false}
+            />
             <Tooltip
-              cursor={{ fill: "rgba(16, 185, 129, 0.08)" }}
+              cursor={{ fill: "rgba(16, 185, 129, 0.05)" }}
               contentStyle={{
-                backgroundColor: "#061a10",
-                borderColor: "#059669",
+                backgroundColor: "#ffffff",
+                borderColor: "#cbd5e1",
                 borderRadius: "0.75rem",
-                color: "#f8fafc",
+                color: "#0f172a",
                 fontSize: "12px",
+                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
               }}
               formatter={(value) => [`${value} dokumen`, "Jumlah"]}
             />
-            <Bar dataKey="documents" name="Dokumen" fill="#10b981" radius={[6, 6, 0, 0]} />
+            <Bar
+              dataKey="documents"
+              name="Dokumen"
+              fill="#10b981"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

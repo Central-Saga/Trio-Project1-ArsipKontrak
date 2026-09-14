@@ -1,8 +1,21 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { ArrowLeft, Download, FileText, Lock, Plus } from "lucide-react";
 import api from "@/lib/api";
+import UploadVersionModal from "@/components/UploadVersionModal";
+
+interface VersionItem {
+  id: number;
+  version_number: string;
+  file_name: string;
+  file_size: number;
+  file_hash: string;
+  notes: string;
+  uploader?: { name: string };
+  created_at: string;
+}
 
 interface DocumentDetail {
   id: number;
@@ -14,253 +27,139 @@ interface DocumentDetail {
   effective_date: string;
   expiry_date: string;
   status: string;
-  description: string | null;
-  project?: {
-    id: number;
-    project_name: string;
-    project_code: string;
-  };
-  creator?: {
-    name: string;
-  };
+  description: string;
+  project?: { name: string };
+  creator?: { name: string };
+  versions: VersionItem[];
 }
 
-interface DocumentVersion {
-  id: number;
-  version_number: string;
-  file_name: string;
-  file_size?: number;
-  file_hash: string;
-  notes?: string;
-  created_at: string;
-  uploader?: {
-    name: string;
-  };
-}
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
-export default function DocumentDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = use(params);
-  const documentId = resolvedParams.id;
+export default function DocumentDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const id = params?.id;
 
-  const [document, setDocument] = useState<DocumentDetail | null>(null);
-  const [versions, setVersions] = useState<DocumentVersion[]>([]);
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Modal Upload Versi Baru / Adendum
-  const [showNewVersionModal, setShowNewVersionModal] = useState(false);
-  const [versionNumberInput, setVersionNumberInput] = useState("v1.1");
-  const [notesInput, setNotesInput] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadingVersion, setUploadingVersion] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const [downloadingVersionId, setDownloadingVersionId] = useState<
-    number | null
-  >(null);
-
-  // PDF Preview States
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(false);
-
-  const loadPreview = useCallback(
-    async (verId: number) => {
-      try {
-        setLoadingPreview(true);
-        const baseURL = api.defaults.baseURL || "http://localhost:8000/api";
-        const response = await api.get(
-          `${baseURL}/documents/${documentId}/versions/${verId}/download`,
-          {
-            responseType: "blob",
-          },
-        );
-
-        if (response.data.type === "application/json") {
-          throw new Error("Gagal memuat pratinjau dokumen.");
-        }
-
-        const url = URL.createObjectURL(response.data);
-        setPreviewUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return url;
-        });
-      } catch {
-        setPreviewUrl(null);
-      } finally {
-        setLoadingPreview(false);
-      }
-    },
-    [documentId],
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(
+    null,
   );
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
 
-  const fetchDocumentData = useCallback(async () => {
+  // State untuk menangani blob pratinjau PDF agar aman dari error token auth iframe
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const fetchDetail = useCallback(async () => {
+    if (!id) return;
     try {
       setLoading(true);
-      const [docRes, verRes] = await Promise.all([
-        api.get(`/documents/${documentId}`),
-        api.get(`/documents/${documentId}/versions`),
-      ]);
-      setDocument(docRes.data?.data || docRes.data);
-
-      const fetchedVersions = verRes.data?.data || verRes.data;
-      setVersions(fetchedVersions);
-      if (fetchedVersions.length > 0) {
-        loadPreview(fetchedVersions[0].id);
+      const res = await api.get(`/documents/${id}`);
+      const docData = res.data.data;
+      setDocDetail(docData);
+      if (docData.versions && docData.versions.length > 0) {
+        setSelectedVersionId(docData.versions[0].id);
       }
+      setError(null);
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal memuat detail dokumen.");
     } finally {
       setLoading(false);
     }
-  }, [documentId, loadPreview]);
+  }, [id]);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
+    fetchDetail();
+  }, [fetchDetail]);
+
+  // Efek untuk memuat file preview terenkripsi menggunakan token axios
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    const loadPreview = async () => {
+      if (!selectedVersionId || !id) return;
       try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
+        setPreviewLoading(true);
+        const response = await api.get(
+          `/documents/${id}/preview?version_id=${selectedVersionId}`,
+          {
+            responseType: "blob",
+          },
+        );
+        const blob = new Blob([response.data], { type: "application/pdf" });
+        objectUrl = window.URL.createObjectURL(blob);
+        setPreviewUrl(objectUrl);
+      } catch (err) {
+        console.error("Gagal memuat pratinjau PDF", err);
+        setPreviewUrl(null);
+      } finally {
+        setPreviewLoading(false);
       }
-    }
+    };
 
-    fetchDocumentData();
-  }, [fetchDocumentData]);
+    loadPreview();
 
-  const handleUploadVersion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (user?.role !== "admin") {
-      setUploadError("Hanya administrator yang dapat mengunggah versi baru.");
-      return;
-    }
+    return () => {
+      if (objectUrl) {
+        window.URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [selectedVersionId, id]);
 
-    if (!selectedFile) {
-      setUploadError("Pilih file PDF adendum/versi baru.");
-      return;
-    }
-
-    setUploadingVersion(true);
-    setUploadError("");
-
-    const payload = new FormData();
-    payload.append("version_number", versionNumberInput);
-    payload.append("file", selectedFile);
-    if (notesInput) payload.append("notes", notesInput);
-
+  const handleDownload = async (versionId: number) => {
     try {
-      await api.post(`/documents/${documentId}/versions`, payload, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setShowNewVersionModal(false);
-      setSelectedFile(null);
-      setNotesInput("");
-      fetchDocumentData();
-    } catch (err: any) {
-      setUploadError(
-        err.response?.data?.message || "Gagal mengunggah versi baru.",
+      const response = await api.get(
+        `/documents/${id}/download?version_id=${versionId}`,
+        {
+          responseType: "blob",
+        },
       );
-    } finally {
-      setUploadingVersion(false);
-    }
-  };
-
-  const handleDownloadVersion = async (version: DocumentVersion) => {
-    setDownloadingVersionId(version.id);
-    setError(null);
-
-    try {
-      const baseURL = api.defaults.baseURL || "http://localhost:8000/api";
-      const downloadEndpoint = `${baseURL}/documents/${documentId}/versions/${version.id}/download`;
-      const response = await api.get(downloadEndpoint, {
-        responseType: "blob",
-      });
-
-      if (response.data.type === "application/json") {
-        const textData = await response.data.text();
-        let errorMessage = "Gagal mengunduh file.";
-
-        try {
-          const errorJson = JSON.parse(textData) as { message?: string };
-          errorMessage = errorJson.message || errorMessage;
-        } catch {
-          // Gunakan pesan umum jika respons bukan JSON yang valid.
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const downloadUrl = URL.createObjectURL(response.data);
-      const link = globalThis.document.createElement("a");
-      link.href = downloadUrl;
-      link.download = version.file_name;
-      globalThis.document.body.appendChild(link);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `${docDetail?.document_number || "document"}-v${versionId}.pdf`,
+      );
+      window.document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(downloadUrl);
-    } catch (err: unknown) {
-      let errorMessage = "Gagal mengunduh file dokumen.";
-
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === "object" && err !== null && "response" in err) {
-        const responseData = (
-          err as { response?: { data?: { message?: string } } }
-        ).response?.data;
-        errorMessage = responseData?.message || errorMessage;
+    } catch (err: any) {
+      if (err.response?.data instanceof Blob) {
+        err.response.data.text().then((text: string) => {
+          try {
+            const errorJson = JSON.parse(text);
+            alert(
+              `Gagal Unduh: ${errorJson.message || errorJson.error || "Kesalahan server"}`,
+            );
+          } catch {
+            alert("Gagal mengunduh berkas terenkripsi.");
+          }
+        });
+      } else {
+        alert(
+          err.response?.data?.message || "Gagal mengunduh berkas terenkripsi.",
+        );
       }
-
-      alert(errorMessage);
-    } finally {
-      setDownloadingVersionId(null);
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-      draft: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-      expired: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-      terminated: "bg-slate-800 text-slate-400 border-slate-700",
-    };
-    return (
-      <span
-        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colors[status?.toLowerCase()] || colors.draft}`}
-      >
-        {status?.toUpperCase()}
-      </span>
-    );
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] flex items-center justify-center text-slate-400 text-sm">
-        Memuat detail arsip dokumen...
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
+        Memuat detail dokumen...
       </div>
     );
   }
 
-  if (error || !document) {
+  if (error || !docDetail) {
     return (
-      <div className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] flex flex-col items-center justify-center gap-4">
-        <div className="text-rose-400 text-sm font-medium">
+      <div className="min-h-screen bg-slate-50 p-8 flex flex-col items-center justify-center">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 mb-4">
           {error || "Dokumen tidak ditemukan."}
         </div>
         <button
           onClick={() => router.push("/")}
-          className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700"
+          className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500 transition"
         >
           Kembali ke Dashboard
         </button>
@@ -269,165 +168,174 @@ export default function DocumentDetailPage({
   }
 
   return (
-    <main className="min-h-screen bg-[#030905] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#072213] via-[#030905] to-[#010402] p-6 md:p-10 text-slate-100">
+    <div className="min-h-screen bg-slate-50 p-6 md:p-10 text-slate-900">
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* Navigasi & Aksi Kembali */}
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <button
             onClick={() => router.push("/")}
-            className="flex items-center gap-2 text-xs font-medium text-slate-400 hover:text-emerald-400 transition"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-600 transition"
           >
-            &larr; Kembali ke Dashboard
+            <ArrowLeft className="h-4 w-4" /> Kembali ke Dashboard
           </button>
-          {user?.role === "admin" && (
-            <button
-              onClick={() => setShowNewVersionModal(true)}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg shadow-sm transition"
-            >
-              + Unggah Versi Baru / Adendum
-            </button>
-          )}
+
+          <button
+            onClick={() => setIsVersionModalOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 transition"
+          >
+            <Plus className="h-4 w-4" /> Unggah Versi Baru / Adendum
+          </button>
         </div>
 
-        {/* Kartu Informasi Utama */}
-        <div className="rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/60 p-6 shadow-[0_8px_32px_0_rgba(0,20,10,0.37)] backdrop-blur-2xl space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-800">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-semibold px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg">
-                  {document.document_number}
-                </span>
-                {getStatusBadge(document.status)}
-                <span className="text-xs uppercase font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
-                  {document.document_type}
-                </span>
-              </div>
-              <h1 className="text-xl font-bold text-white mt-2">
-                {document.document_name}
-              </h1>
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+                <Lock className="h-3 w-3" /> {docDetail.document_number}
+              </span>
+              <span
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                  docDetail.status.toLowerCase() === "active"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : docDetail.status.toLowerCase() === "draft"
+                      ? "bg-amber-100 text-amber-800"
+                      : docDetail.status.toLowerCase() === "expired"
+                        ? "bg-rose-100 text-rose-800 border border-rose-200" // Warna merah untuk status expired
+                        : "bg-slate-100 text-slate-800"
+                }`}
+              >
+                {docDetail.status}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 uppercase">
+                {docDetail.document_type}
+              </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
-            <div className="space-y-1">
-              <span className="text-slate-400 font-medium">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {docDetail.document_name}
+            </h1>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-slate-100 text-sm">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Pihak Rekanan (Partner)
-              </span>
-              <div className="font-semibold text-slate-200 text-sm">
-                {document.partner}
-              </div>
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.partner}
+              </p>
             </div>
-            <div className="space-y-1">
-              <span className="text-slate-400 font-medium">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Project Terkait
-              </span>
-              <div className="font-semibold text-slate-200 text-sm">
-                {document.project
-                  ? `[${document.project.project_code}] ${document.project.project_name}`
-                  : "-"}
-              </div>
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.project?.name || "-"}
+              </p>
             </div>
-            <div className="space-y-1">
-              <span className="text-slate-400 font-medium">Dibuat Oleh</span>
-              <div className="font-semibold text-slate-200 text-sm">
-                {document.creator?.name || "Administrator"}
-              </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Dibuat Oleh
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.creator?.name || "Administrator"}
+              </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-slate-800 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-4 border-t border-slate-100 text-sm">
             <div>
-              <span className="text-slate-500">Tanggal Dokumen:</span>{" "}
-              <strong className="text-slate-300">
-                {document.document_date}
-              </strong>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Tanggal Dokumen
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.document_date || "-"}
+              </p>
             </div>
             <div>
-              <span className="text-slate-500">Tanggal Efektif:</span>{" "}
-              <strong className="text-slate-300">
-                {document.effective_date}
-              </strong>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Tanggal Efektif
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.effective_date || "-"}
+              </p>
             </div>
             <div>
-              <span className="text-slate-500">Tanggal Berakhir:</span>{" "}
-              <strong className="text-rose-400">{document.expiry_date}</strong>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                Tanggal Berakhir
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {docDetail.expiry_date || "-"}
+              </p>
             </div>
           </div>
 
-          {document.description && (
-            <div className="pt-4 border-t border-slate-800 text-xs space-y-1">
-              <span className="text-slate-400 font-medium">
-                Deskripsi / Catatan Ruang Lingkup:
-              </span>
-              <p className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 p-3 leading-relaxed text-emerald-100/80">
-                {document.description}
+          {docDetail.description && (
+            <div className="pt-4 border-t border-slate-100">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+                Deskripsi / Catatan Ruang Lingkup
+              </p>
+              <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                {docDetail.description}
               </p>
             </div>
           )}
         </div>
 
-        {/* Tabel Riwayat Versi Dokumen */}
-        <div className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 shadow-2xl backdrop-blur-xl">
-          <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-slate-200 text-sm">
-                Riwayat Versi Dokumen & Berkas
+              <h2 className="text-lg font-bold text-slate-900">
+                Riwayat Versi Dokumen &amp; Berkas
               </h2>
               <p className="text-xs text-slate-500">
                 Setiap perubahan berkas tercatat aman dengan SHA-256 Checksum.
               </p>
             </div>
-            <span className="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-lg font-medium">
-              {versions.length} Versi Tersedia
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200">
+              {docDetail.versions.length} Versi Tersedia
             </span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="border-b border-emerald-500/10 bg-[#0b1f14]/60 font-medium text-slate-500">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="px-6 py-3">Versi</th>
-                  <th className="px-6 py-3">Nama Berkas PDF</th>
-                  <th className="px-6 py-3">SHA-256 Checksum Hash</th>
-                  <th className="px-6 py-3">Catatan Revisi</th>
-                  <th className="px-6 py-3">Pengunggah</th>
-                  <th className="px-6 py-3 text-right">Aksi Unduh</th>
+                  <th className="px-6 py-3.5">Versi</th>
+                  <th className="px-6 py-3.5">Nama Berkas PDF</th>
+                  <th className="px-6 py-3.5">SHA-256 Checksum Hash</th>
+                  <th className="px-6 py-3.5">Catatan Revisi</th>
+                  <th className="px-6 py-3.5">Pengunggah</th>
+                  <th className="px-6 py-3.5 text-right">Aksi Unduh</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {versions.map((ver) => (
-                  <tr
-                    key={ver.id}
-                    className="transition hover:bg-emerald-500/5"
-                  >
-                    <td className="px-6 py-4 font-bold text-emerald-600">
+              <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
+                {docDetail.versions.map((ver) => (
+                  <tr key={ver.id} className="hover:bg-slate-50 transition">
+                    <td className="px-6 py-4 font-semibold text-emerald-600">
                       {ver.version_number}
                     </td>
-                    <td className="px-6 py-4 font-medium text-slate-200">
+                    <td className="px-6 py-4 font-medium text-slate-900 flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-slate-400" />{" "}
                       {ver.file_name}
                     </td>
                     <td
-                      className="px-6 py-4 font-mono text-slate-500 text-[11px] truncate max-w-[200px]"
+                      className="px-6 py-4 font-mono text-xs text-slate-500 truncate max-w-xs"
                       title={ver.file_hash}
                     >
                       {ver.file_hash}
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
-                      {ver.notes || "-"}
-                    </td>
-                    <td className="px-6 py-4 text-slate-300">
+                    <td className="px-6 py-4 text-slate-600">{ver.notes}</td>
+                    <td className="px-6 py-4 text-slate-600">
                       {ver.uploader?.name || "Admin"}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        type="button"
-                        onClick={() => handleDownloadVersion(ver)}
-                        disabled={downloadingVersionId === ver.id}
-                        className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-medium rounded-lg border border-emerald-500/20 transition"
+                        onClick={() => handleDownload(ver.id)}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
                       >
-                        {downloadingVersionId === ver.id
-                          ? "Mengunduh..."
-                          : "Unduh PDF"}
+                        <Download className="h-3.5 w-3.5" /> Unduh PDF
                       </button>
                     </td>
                   </tr>
@@ -437,136 +345,58 @@ export default function DocumentDetailPage({
           </div>
         </div>
 
-        {/* PDF Viewer Interaktif */}
-        <div className="mt-6 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/80 p-6 shadow-2xl backdrop-blur-xl space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-slate-200 text-sm">
+              <h2 className="text-lg font-bold text-slate-900">
                 Pratinjau Dokumen PDF
               </h2>
               <p className="text-xs text-slate-500">
                 Menampilkan isi berkas kontrak secara langsung.
               </p>
             </div>
-            {versions.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Pilih Versi:</span>
-                <select
-                  onChange={(e) => loadPreview(Number(e.target.value))}
-                  className="bg-[#07140c] border border-emerald-500/30 text-xs text-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-emerald-400"
-                >
-                  {versions.map((ver, idx) => (
-                    <option key={ver.id} value={ver.id}>
-                      Versi {ver.version_number} {idx === 0 ? "(Terbaru)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+              <span>Pilih Versi:</span>
+              <select
+                value={selectedVersionId || ""}
+                onChange={(e) => setSelectedVersionId(Number(e.target.value))}
+                className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 focus:bg-white focus:border-emerald-500 focus:outline-none"
+              >
+                {docDetail.versions.map((ver) => (
+                  <option key={ver.id} value={ver.id}>
+                    Versi {ver.version_number} ({ver.file_name})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {loadingPreview ? (
-            <div className="h-[450px] flex items-center justify-center text-xs text-slate-400">
-              Memuat pratinjau berkas PDF...
-            </div>
-          ) : previewUrl ? (
-            <iframe
-              src={previewUrl}
-              className="w-full h-[650px] rounded-xl border border-emerald-500/20 bg-slate-900"
-              title="PDF Viewer"
-            />
-          ) : (
-            <div className="text-center py-12 text-xs text-slate-500">
-              Pratinjau PDF tidak tersedia atau gagal dimuat. Silakan gunakan
-              tombol unduh di atas.
-            </div>
-          )}
+          <div className="h-[500px] w-full rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+            {previewLoading ? (
+              <p className="text-sm text-slate-500 animate-pulse">
+                Memuat pratinjau terenkripsi...
+              </p>
+            ) : previewUrl ? (
+              <iframe
+                src={previewUrl}
+                className="h-full w-full border-0"
+                title="Pratinjau PDF"
+              />
+            ) : (
+              <p className="text-sm text-slate-400">
+                Gagal memuat pratinjau berkas.
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Modal Unggah Versi Baru */}
-      {showNewVersionModal && user?.role === "admin" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-4 rounded-3xl border border-emerald-500/30 bg-[#0b1f14]/90 p-6 text-slate-100 shadow-[0_0_50px_rgba(4,47,27,0.5)] backdrop-blur-2xl">
-            <div className="flex items-center justify-between border-b border-emerald-500/10 pb-3">
-              <h3 className="text-base font-bold text-white">
-                Unggah Versi Baru / Adendum
-              </h3>
-              <button
-                onClick={() => setShowNewVersionModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg"
-              >
-                &times;
-              </button>
-            </div>
-
-            {uploadError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs">
-                {uploadError}
-              </div>
-            )}
-
-            <form onSubmit={handleUploadVersion} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Nomor Versi (misal: v1.1 atau v2.0)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={versionNumberInput}
-                  onChange={(e) => setVersionNumberInput(e.target.value)}
-                  className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Berkas PDF Baru (Max 20MB)
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  required
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-500/10 file:text-emerald-400"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 mb-1">
-                  Catatan Revisi / Adendum (Opsional)
-                </label>
-                <textarea
-                  rows={2}
-                  value={notesInput}
-                  onChange={(e) => setNotesInput(e.target.value)}
-                  placeholder="Keterangan perubahan klausul atau penambahan adendum..."
-                  className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white placeholder:text-emerald-300/60 shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-emerald-500/10 pt-3">
-                <button
-                  type="button"
-                  disabled={uploadingVersion}
-                  onClick={() => setShowNewVersionModal(false)}
-                  className="rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-2 text-xs font-medium text-emerald-300 hover:bg-emerald-900/40"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploadingVersion}
-                  className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/50 transition-all duration-300 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50"
-                >
-                  {uploadingVersion ? "Mengunggah..." : "Simpan Versi"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </main>
+      <UploadVersionModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        onSuccess={fetchDetail}
+        documentId={Number(id)}
+      />
+    </div>
   );
 }

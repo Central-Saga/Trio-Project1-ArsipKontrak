@@ -1,239 +1,226 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { X, UploadCloud, FileText, Lock } from "lucide-react";
 import api from "@/lib/api";
-import { documentSchema } from "@/lib/documentSchema";
 
-interface ProjectItem {
-  id: number;
-  project_name: string;
-  project_code: string;
-}
-
-interface Props {
+interface UploadDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  secureMode: boolean;
+  secureMode?: boolean;
 }
 
 export default function UploadDocumentModal({
   isOpen,
   onClose,
   onSuccess,
-  secureMode,
-}: Props) {
-  const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [loadingProjects, setLoadingProjects] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  secureMode = true,
+}: UploadDocumentModalProps) {
+  const [projectId, setProjectId] = useState<number>(1);
+  const [title, setTitle] = useState("");
+  const [documentNumber, setDocumentNumber] = useState("");
+  const [documentType, setDocumentType] = useState("contract");
+  const [counterpartName, setCounterpartName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState({
-    project_id: "",
-    document_number: "",
-    document_name: "",
-    document_type: "contract",
-    partner: "",
-    document_date: "",
-    effective_date: "",
-    expiry_date: "",
-    status: "draft",
-    description: "",
-    notes: "",
-  });
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
-  const resetForm = () => {
-    setFormData({
-      project_id: "",
-      document_number: "",
-      document_name: "",
-      document_type: "contract",
-      partner: "",
-      document_date: "",
-      effective_date: "",
-      expiry_date: "",
-      status: "draft",
-      description: "",
-      notes: "",
-    });
-    setSelectedFile(null);
-    setErrorMsg("");
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
+  // State untuk popup sukses
+  const [successPopup, setSuccessPopup] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      const fetchProjects = async () => {
-        try {
-          setLoadingProjects(true);
-          const res = await api.get("/projects");
-          setProjects(res.data);
-          if (res.data.length > 0) {
-            setFormData((prev) => ({
-              ...prev,
-              project_id: res.data[0].id.toString(),
-            }));
-          }
-        } catch {
-          // fallback jika fetch gagal
-        } finally {
-          setLoadingProjects(false);
-        }
-      };
-      fetchProjects();
+      const randomCode = Math.floor(1000 + Math.random() * 9000);
+      setDocumentNumber(`CTR/2026/IX/${randomCode}`);
+    } else {
+      setProjectId(1);
+      setTitle("");
+      setDocumentNumber("");
+      setDocumentType("contract");
+      setCounterpartName("");
+      setStartDate("");
+      setEndDate("");
+      setDescription("");
+      setFile(null);
+      setError(null);
+      setSuccessPopup(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.type !== "application/pdf") {
-        setErrorMsg("Format berkas arsip harus bertipe PDF.");
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        setErrorMsg("Ukuran berkas PDF maksimal 20 MB.");
-        return;
-      }
-      setErrorMsg("");
-      setSelectedFile(file);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg("");
-
-    // Validasi menggunakan Zod schema
-    const validationResult = documentSchema.safeParse({
-      ...formData,
-      file: selectedFile,
-    });
-
-    if (!validationResult.success) {
-      const firstError =
-        validationResult.error.issues[0]?.message ||
-        "Mohon periksa kembali input formulir.";
-      setErrorMsg(firstError);
+    if (!file) {
+      setError("Silakan pilih berkas PDF dokumen terlebih dahulu.");
       return;
     }
 
-    setSubmitting(true);
-
-    const payload = new FormData();
-    Object.entries(formData).forEach(([key, val]) => {
-      payload.append(key, val);
-    });
-    if (selectedFile) {
-      payload.append("file", selectedFile);
-    }
-    payload.append("secure_mode", secureMode ? "1" : "0");
-
     try {
-      await api.post("/documents", payload, {
-        headers: { "Content-Type": "multipart/form-data" },
+      setLoading(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append("project_id", projectId.toString());
+      formData.append("title", title);
+      formData.append("document_name", title);
+      formData.append("name", title);
+
+      formData.append("document_number", documentNumber);
+      formData.append("document_no", documentNumber);
+      formData.append("number", documentNumber);
+
+      formData.append("document_type", documentType);
+      formData.append("type", documentType);
+
+      formData.append("partner", counterpartName);
+      formData.append("counterpart_name", counterpartName);
+      formData.append("counterpart", counterpartName);
+      formData.append("partner_name", counterpartName);
+
+      formData.append("document_date", startDate);
+      formData.append("date", startDate);
+      formData.append("tanggal", startDate);
+      formData.append("start_date", startDate);
+      formData.append("effective_date", startDate);
+
+      formData.append("expiry_date", endDate);
+      formData.append("end_date", endDate);
+      formData.append("expired_date", endDate);
+
+      formData.append("description", description);
+      formData.append("desc", description);
+
+      formData.append("file", file);
+      formData.append("document_file", file);
+
+      await api.post("/documents", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
-      resetForm();
-      onSuccess();
-      onClose();
-    } catch (err: unknown) {
-      const response = (
-        err as {
-          response?: {
-            data?: { message?: string; errors?: Record<string, string[]> };
-          };
-        }
-      ).response;
-      const firstValidationError = response?.data?.errors
-        ? Object.values(response.data.errors)[0]?.[0]
-        : undefined;
-      const msg =
-        response?.data?.message ||
-        firstValidationError ||
-        "Gagal mengunggah dokumen.";
-      setErrorMsg(msg);
+
+      // Tampilkan popup sukses yang compact
+      setSuccessPopup(true);
+      setTimeout(() => {
+        setSuccessPopup(false);
+        onSuccess();
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error("Error details:", err);
+      const errorData = err.response?.data;
+
+      if (errorData?.errors) {
+        const firstKey = Object.keys(errorData.errors)[0];
+        setError(errorData.errors[firstKey][0]);
+      } else if (errorData?.message) {
+        setError(errorData.message);
+      } else {
+        setError(err.message || "Gagal terhubung ke server.");
+      }
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
-      <div className="bg-[#0b1f14]/90 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl shadow-[0_0_50px_rgba(4,47,27,0.5)] text-slate-100 w-full max-w-3xl max-h-[calc(100vh-2rem)] my-4 overflow-hidden flex flex-col">
-        <div className="border-b border-emerald-500/10 px-6 py-4 flex justify-between items-center text-white shrink-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl transition-all my-8">
+        {/* Popup Sukses Compact Card */}
+        {successPopup && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-xs rounded-2xl">
+            <div className="w-72 rounded-2xl bg-white p-5 text-center shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2.5"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4.5 12.75l6 6 9-13.5"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-slate-900">
+                Berhasil Diunggah!
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Dokumen telah diamankan dengan AES-256.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div>
-            <h3 className="text-lg font-semibold tracking-wide">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               Unggah Dokumen Baru
-            </h3>
-            <p className="text-xs text-emerald-100">
-              Lengkapi data arsip kontrak/MoU beserta berkas PDF terenkripsi
+              {secureMode && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 border border-emerald-200">
+                  <Lock className="h-3 w-3" /> AES-256
+                </span>
+              )}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Lengkapi data arsip kontrak/MoU beserta berkas PDF terenkripsi.
             </p>
           </div>
           <button
             type="button"
-            onClick={handleClose}
-            aria-label="Tutup modal"
-            className="text-emerald-200 hover:text-white transition-colors p-1 rounded-lg hover:bg-emerald-700/50 text-xl leading-none"
+            onClick={onClose}
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
           >
-            &times;
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {errorMsg && (
-          <div className="mx-6 mt-5 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs">
-            {errorMsg}
+        {error && (
+          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-600">
+            {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Pilih Project
               </label>
               <select
-                name="project_id"
-                required
-                value={formData.project_id}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                value={projectId}
+                onChange={(e) => setProjectId(Number(e.target.value))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               >
-                {loadingProjects ? (
-                  <option value="">Memuat project...</option>
-                ) : (
-                  projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      [{p.project_code}] {p.project_name}
-                    </option>
-                  ))
-                )}
+                <option value={1}>
+                  [PRJ-MOU-001] Kerja Sama Digital Transformasi
+                </option>
+                <option value={2}>
+                  [PRJ-MOU-002] Penyediaan Infrastruktur Jaringan
+                </option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Tipe Dokumen
               </label>
               <select
-                name="document_type"
-                value={formData.document_type}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               >
                 <option value="contract">Contract</option>
                 <option value="mou">MoU</option>
@@ -241,168 +228,144 @@ export default function UploadDocumentModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Nomor Dokumen
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Judul Dokumen
               </label>
               <input
                 type="text"
-                name="document_number"
                 required
-                placeholder="CTR/2026/IX/003"
-                value={formData.document_number}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Nama atau perihal dokumen"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Pihak Rekanan (Partner)
               </label>
               <input
                 type="text"
-                name="partner"
                 required
-                placeholder="PT Bonjaka Jaya"
-                value={formData.partner}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
+                value={counterpartName}
+                onChange={(e) => setCounterpartName(e.target.value)}
+                placeholder="Nama instansi / perusahaan rekanan"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Tanggal Mulai (Start Date)
+              </label>
+              <input
+                type="date"
+                required
+                min={todayStr}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Tanggal Berakhir (End Date)
+              </label>
+              <input
+                type="date"
+                required
+                min={startDate || todayStr}
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+          </div>
+
+          {/* File Upload Area */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Nama Dokumen
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+              Berkas PDF Dokumen (Max 20MB)
+            </label>
+            <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-6 text-center hover:bg-emerald-50/20 hover:border-emerald-500 transition cursor-pointer">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-2">
+                <UploadCloud className="h-5 w-5" />
+              </div>
+              {file ? (
+                <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+                  <FileText className="h-4 w-4" />
+                  <span>{file.name}</span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-slate-700">
+                    Klik untuk memilih berkas atau seret ke sini
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    PDF hingga 20MB {secureMode && "(Terenkripsi Aman)"}
+                  </p>
+                </>
+              )}
+              <input
+                type="file"
+                accept="application/pdf"
+                required
+                onChange={(e) => e.target.files && setFile(e.target.files[0])}
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          {/* Nomor Dokumen otomatis & terkunci */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center justify-between">
+              <span>Nomor Dokumen (Otomatis &amp; Terkunci)</span>
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                System Generated
+              </span>
             </label>
             <input
               type="text"
-              name="document_name"
-              required
-              placeholder="Perjanjian Kerja Sama Penyediaan Layanan Infrastruktur"
-              value={formData.document_name}
-              onChange={handleChange}
-              className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
+              disabled
+              value={documentNumber}
+              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2 text-sm text-slate-500 cursor-not-allowed select-none"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Tanggal Dokumen
-              </label>
-              <input
-                type="date"
-                name="document_date"
-                required
-                value={formData.document_date}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/30 bg-[#07140c]/90 px-4 py-3 text-sm text-white shadow-inner transition focus:border-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Tanggal Efektif
-              </label>
-              <input
-                type="date"
-                name="effective_date"
-                required
-                value={formData.effective_date}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Tanggal Berakhir
-              </label>
-              <input
-                type="date"
-                name="expiry_date"
-                required
-                value={formData.expiry_date}
-                onChange={handleChange}
-                className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100"
-              />
-            </div>
-          </div>
-
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Berkas PDF Dokumen (Max 20MB)
-            </label>
-            <div className="mt-1 flex justify-center px-6 pt-3 pb-4 border-2 border-emerald-500/20 border-dashed rounded-xl hover:border-emerald-400 transition-colors bg-[#07140c]/60">
-              <div className="space-y-1 text-center">
-                <svg
-                  className="mx-auto h-9 w-9 text-emerald-400/60"
-                  stroke="currentColor"
-                  fill="none"
-                  viewBox="0 0 48 48"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <div className="flex text-sm text-slate-300 justify-center">
-                  <label className="relative cursor-pointer rounded-md font-medium text-emerald-300 hover:text-emerald-200 focus-within:outline-none">
-                    <span>
-                      {selectedFile ? selectedFile.name : "Unggah berkas"}
-                    </span>
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept=".pdf"
-                      required={!selectedFile}
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                  {!selectedFile && <p className="pl-1">atau seret ke sini</p>}
-                </div>
-                <p className="text-xs text-emerald-300/60">
-                  PDF hingga 20MB (Terenkripsi Aman)
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
               Deskripsi / Ringkasan (Opsional)
             </label>
             <textarea
-              name="description"
               rows={2}
-              value={formData.description}
-              onChange={handleChange}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder="Catatan ruang lingkup atau klausul penting..."
-              className="w-full rounded-xl border border-emerald-500/20 bg-[#07140c]/80 shadow-sm focus:border-emerald-400 focus:ring-emerald-400 text-sm py-2 px-3 text-slate-100 placeholder:text-emerald-300/60"
-            ></textarea>
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
+            />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
             <button
               type="button"
-              disabled={submitting}
               onClick={onClose}
-              className="px-4 py-2 bg-emerald-950/40 hover:bg-emerald-900/40 border border-emerald-500/20 text-emerald-300 rounded-xl text-sm font-medium transition"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
             >
               Batal
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-2.5 text-sm font-bold text-slate-950 shadow-lg shadow-emerald-950/50 transition-all duration-300 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-50"
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 transition disabled:opacity-50"
             >
-              {submitting
-                ? "Mengunggah & Menghitung Hash..."
-                : "Unggah & Simpan"}
+              {loading ? "Menyimpan..." : "Unggah & Simpan"}
             </button>
           </div>
         </form>

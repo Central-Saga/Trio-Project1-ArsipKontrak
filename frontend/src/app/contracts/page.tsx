@@ -13,6 +13,7 @@ import {
   Menu,
   Plus,
   RotateCcw,
+  ShieldAlert,
   Trash2,
 } from "lucide-react";
 import api from "@/lib/api";
@@ -195,10 +196,10 @@ function ContractsContent() {
   };
 
   const statusClasses: Record<string, string> = {
-    active: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-    draft: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-    expired: "border-rose-500/30 bg-rose-500/10 text-rose-400",
-    terminated: "border-slate-700 bg-slate-800 text-slate-400",
+    active: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    draft: "border-amber-200 bg-amber-50 text-amber-700",
+    expired: "border-rose-200 bg-rose-50 text-rose-700",
+    terminated: "border-slate-200 bg-slate-100 text-slate-700",
   };
 
   const handleLogout = async () => {
@@ -216,9 +217,9 @@ function ContractsContent() {
   };
 
   return (
-    <div className="flex min-h-screen bg-transparent text-slate-100">
+    <div className="flex min-h-screen bg-slate-50 text-slate-900">
       <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-emerald-500/20 bg-[#07150e]/80 p-4 backdrop-blur-xl transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}
+        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}
       >
         <div>
           <div
@@ -226,10 +227,10 @@ function ContractsContent() {
           >
             {isSidebarOpen && (
               <div className="flex min-w-0 items-center gap-2 px-2">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500 text-slate-950">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-md shadow-emerald-600/20">
                   <Folder className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <span className="truncate font-bold tracking-wider text-white">
+                <span className="truncate font-bold tracking-wider text-slate-900">
                   SAGA ARSIP
                 </span>
               </div>
@@ -238,7 +239,7 @@ function ContractsContent() {
               type="button"
               onClick={() => setIsSidebarOpen((isOpen) => !isOpen)}
               aria-label={isSidebarOpen ? "Tutup sidebar" : "Buka sidebar"}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
               <Menu className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -249,7 +250,7 @@ function ContractsContent() {
               type="button"
               onClick={() => router.push("/")}
               title="Dashboard"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
             >
               <LayoutDashboard
                 className="h-5 w-5 shrink-0"
@@ -261,7 +262,7 @@ function ContractsContent() {
               type="button"
               onClick={() => router.push("/contracts")}
               title="Kontrak & MoU"
-              className={`flex w-full items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2.5 text-left font-medium text-emerald-400 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${isSidebarOpen ? "" : "justify-center"}`}
             >
               <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />
               {isSidebarOpen && <span>Kontrak &amp; MoU</span>}
@@ -270,23 +271,34 @@ function ContractsContent() {
               type="button"
               onClick={() => router.push("/statistics")}
               title="Ringkasan"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
             >
               <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
               {isSidebarOpen && <span>Ringkasan</span>}
             </button>
+            {user?.role === "admin" && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin/logs")}
+                title="Log Aktivitas"
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              >
+                <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
+                {isSidebarOpen && <span>Log Aktivitas</span>}
+              </button>
+            )}
           </nav>
         </div>
 
-        <div className="border-t border-emerald-500/20 pt-4">
+        {/* Tombol Keluar (Hanya Ikon) */}
+        <div className="border-t border-slate-200 pt-4">
           <button
             type="button"
             onClick={handleLogout}
             title="Keluar"
-            className={`flex w-full items-center gap-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-left text-rose-400 transition hover:bg-rose-500/20 ${isSidebarOpen ? "" : "justify-center"}`}
+            className="flex w-full items-center justify-center rounded-xl border border-rose-200 bg-rose-50 py-3 text-rose-600 transition hover:bg-rose-100"
           >
             <LogOut className="h-5 w-5 shrink-0" aria-hidden="true" />
-            {isSidebarOpen && <span>Keluar</span>}
           </button>
         </div>
       </aside>
@@ -294,9 +306,9 @@ function ContractsContent() {
       <div
         className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}
       >
-        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-emerald-500/20 bg-[#0b1f14]/65 px-6 backdrop-blur-md">
+        <header className="relative z-10 flex h-16 shrink-0 items-center justify-between overflow-visible border-b border-slate-200 bg-white px-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
               SAGA ARSIP
             </p>
             <p className="text-xs text-slate-500">Manajemen dokumen legal</p>
@@ -305,24 +317,48 @@ function ContractsContent() {
             ref={profileMenuRef}
             className="relative flex items-center gap-3"
           >
+            {user?.role === "admin" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsUploadOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500"
+                >
+                  <Plus className="h-4 w-4" /> Unggah
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTrashOpen(true);
+                    fetchTrashedDocuments();
+                  }}
+                  title="Arsip Terhapus"
+                  className="inline-flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-amber-700 transition hover:bg-amber-100 shadow-sm"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
+            )}
+
             <button
               type="button"
               onClick={() => setIsProfileMenuOpen((isOpen) => !isOpen)}
               aria-expanded={isProfileMenuOpen}
               aria-haspopup="menu"
               aria-label="Buka profil"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white transition hover:bg-emerald-500"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500"
             >
               {user?.name?.slice(0, 2).toUpperCase() || "AD"}
             </button>
+
             {isProfileMenuOpen && (
               <div
-                className="absolute right-0 top-11 z-[99] w-56 rounded-2xl border border-emerald-500/20 bg-[#0b1f14]/95 py-2 text-emerald-100 shadow-2xl backdrop-blur-xl"
+                className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-slate-800 shadow-xl"
                 role="menu"
               >
-                <div className="mb-1 border-b border-emerald-500/10 px-4 py-3">
-                  <p className="text-xs text-emerald-400/60">Masuk sebagai</p>
-                  <p className="truncate text-sm font-bold">
+                <div className="mb-1 border-b border-slate-100 px-4 py-3">
+                  <p className="text-xs text-slate-400">Masuk sebagai</p>
+                  <p className="truncate text-sm font-bold text-slate-900">
                     {user?.name || "Administrator"}
                   </p>
                 </div>
@@ -333,7 +369,7 @@ function ContractsContent() {
                     setIsProfileMenuOpen(false);
                     router.push("/profile");
                   }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-slate-300 transition hover:bg-emerald-500/10 hover:text-emerald-400"
+                  className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-emerald-600"
                 >
                   Profil Saya
                 </button>
@@ -344,11 +380,11 @@ function ContractsContent() {
                     setIsProfileMenuOpen(false);
                     router.push("/contracts");
                   }}
-                  className="w-full px-4 py-2.5 text-left text-sm text-slate-300 transition hover:bg-emerald-500/10 hover:text-emerald-400"
+                  className="w-full px-4 py-2.5 text-left text-sm text-slate-600 transition hover:bg-slate-50 hover:text-emerald-600"
                 >
                   Kontrak &amp; MoU
                 </button>
-                <div className="mt-1 border-t border-slate-800 pt-1">
+                <div className="mt-1 border-t border-slate-100 pt-1">
                   <button
                     type="button"
                     role="menuitem"
@@ -356,7 +392,7 @@ function ContractsContent() {
                       setIsProfileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-400 transition hover:bg-rose-500/10"
+                    className="w-full px-4 py-2.5 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
                   >
                     Keluar
                   </button>
@@ -368,65 +404,37 @@ function ContractsContent() {
 
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
           <div className="mx-auto max-w-7xl space-y-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/")}
-                  className="mb-3 flex items-center gap-2 text-sm text-slate-400 transition hover:text-emerald-400"
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Kembali ke Dashboard
-                </button>
-                <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-                  <FileText
-                    className="h-7 w-7 text-emerald-400"
-                    aria-hidden="true"
-                  />
-                  Manajemen Kontrak &amp; MoU
-                </h1>
-                <p className="mt-1 text-sm text-slate-400">
-                  Kelompokkan dan telusuri dokumen berdasarkan kategori hukum.
-                </p>
-              </div>
-
-              {user?.role === "admin" && (
-                <div className="flex flex-wrap gap-2 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      window.dispatchEvent(new Event("open-upload-modal"))
-                    }
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-950/50 transition hover:bg-emerald-500"
-                  >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Unggah Dokumen Baru
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsTrashOpen(true);
-                      fetchTrashedDocuments();
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300 transition hover:bg-amber-500/20"
-                  >
-                    <Trash2 className="h-4 w-4" aria-hidden="true" />
-                    Arsip Terhapus
-                  </button>
-                </div>
-              )}
+            <div className="border-b border-slate-200 pb-5">
+              <button
+                type="button"
+                onClick={() => router.push("/")}
+                className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-emerald-600"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Kembali ke Dashboard
+              </button>
+              <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
+                <FileText
+                  className="h-7 w-7 text-emerald-600"
+                  aria-hidden="true"
+                />
+                Manajemen Kontrak &amp; MoU
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                Kelompokkan dan telusuri dokumen berdasarkan kategori hukum.
+              </p>
             </div>
 
-            <div className="flex items-center gap-2 border-b border-emerald-500/20 pb-4">
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-4">
               {(["all", "contract", "mou"] as DocumentTab[]).map((tab) => (
                 <button
                   key={tab}
                   type="button"
                   onClick={() => handleTabChange(tab)}
-                  className={`rounded-xl border px-4 py-2 text-sm font-medium capitalize transition ${
+                  className={`rounded-xl border px-4 py-2 text-sm font-semibold capitalize transition ${
                     activeTab === tab
-                      ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300 shadow-inner"
-                      : "border-emerald-500/20 bg-[#0b1f14]/60 text-emerald-300/60 hover:text-emerald-200"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
                   {tab === "all"
@@ -442,16 +450,16 @@ function ContractsContent() {
               className="flex flex-wrap items-center gap-2"
               aria-label="Filter status dokumen"
             >
-              <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Status:
               </span>
               <button
                 type="button"
                 onClick={() => handleStatusFilter(null)}
-                className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
                   !statusFilter
-                    ? "border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
-                    : "border-emerald-500/20 bg-[#0b1f14]/60 text-slate-400 hover:text-emerald-200"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
                 Semua
@@ -461,10 +469,10 @@ function ContractsContent() {
                   key={filter.value}
                   type="button"
                   onClick={() => handleStatusFilter(filter.value)}
-                  className={`rounded-xl border px-3 py-2 text-xs font-medium transition ${
+                  className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
                     statusFilter === filter.value
                       ? statusClasses[filter.value]
-                      : "border-emerald-500/20 bg-[#0b1f14]/60 text-slate-400 hover:text-emerald-200"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                   }`}
                 >
                   {filter.label}
@@ -473,34 +481,34 @@ function ContractsContent() {
             </div>
 
             {activeFilterLabel && (
-              <div className="flex items-center justify-between rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+              <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm">
                 <span>
                   Filter aktif: <strong>{activeFilterLabel}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={handleResetFilter}
-                  className="text-xs font-semibold text-emerald-400 hover:text-white"
+                  className="text-xs font-semibold text-emerald-600 hover:text-emerald-800"
                 >
                   Reset filter
                 </button>
               </div>
             )}
 
-            <section className="overflow-hidden rounded-2xl border border-emerald-500/20 bg-emerald-950/20 shadow-2xl backdrop-blur-xl">
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
               {loading ? (
-                <div className="p-10 text-center text-sm text-slate-400">
+                <div className="p-10 text-center text-sm text-slate-500">
                   Memuat data kontrak dan MoU...
                 </div>
               ) : error ? (
-                <div className="p-10 text-center text-sm text-rose-400">
+                <div className="p-10 text-center text-sm text-rose-600">
                   {error}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[780px] text-left">
                     <thead>
-                      <tr className="border-b border-emerald-500/20 bg-[#0b1f14]/60 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
                         <th className="p-4">Nomor / Judul Dokumen</th>
                         <th className="p-4">Tipe</th>
                         <th className="p-4">Pihak Rekanan</th>
@@ -509,38 +517,38 @@ function ContractsContent() {
                         <th className="p-4 text-right">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-emerald-500/10 text-sm">
+                    <tbody className="divide-y divide-slate-100 text-sm">
                       {filteredDocuments.length > 0 ? (
                         filteredDocuments.map((document) => {
                           const status = document.status.toLowerCase();
                           return (
                             <tr
                               key={document.id}
-                              className="transition hover:bg-emerald-500/5"
+                              className="transition hover:bg-slate-50"
                             >
                               <td className="p-4">
-                                <div className="font-semibold text-white">
+                                <div className="font-semibold text-slate-900">
                                   {document.document_name}
                                 </div>
-                                <div className="text-xs text-emerald-400/80">
+                                <div className="text-xs text-slate-400">
                                   {document.document_number}
                                 </div>
                               </td>
                               <td className="p-4">
-                                <span className="rounded-lg border border-emerald-500/20 bg-emerald-950/40 px-2.5 py-1 text-xs font-medium capitalize text-emerald-100/80">
+                                <span className="rounded-lg border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">
                                   {document.document_type}
                                 </span>
                               </td>
-                              <td className="p-4 text-slate-300">
+                              <td className="p-4 text-slate-700">
                                 {document.partner}
                               </td>
-                              <td className="p-4 text-xs text-slate-400">
+                              <td className="p-4 text-xs text-slate-500">
                                 {document.effective_date} s/d{" "}
                                 {document.expiry_date}
                               </td>
                               <td className="p-4">
                                 <span
-                                  className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${statusClasses[status] || statusClasses.draft}`}
+                                  className={`rounded-full border px-2.5 py-1 text-xs font-bold ${statusClasses[status] || statusClasses.draft}`}
                                 >
                                   {document.status.toUpperCase()}
                                 </span>
@@ -551,7 +559,7 @@ function ContractsContent() {
                                   onClick={() =>
                                     router.push(`/documents/${document.id}`)
                                   }
-                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-950/40 px-3 py-1.5 text-xs font-medium text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-600 hover:text-white"
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                                 >
                                   <Eye
                                     className="h-3.5 w-3.5"
@@ -567,17 +575,17 @@ function ContractsContent() {
                         <tr>
                           <td colSpan={6} className="p-12 text-center">
                             <div className="mx-auto flex max-w-sm flex-col items-center justify-center space-y-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400">
                                 <FileText
                                   className="h-6 w-6"
                                   aria-hidden="true"
                                 />
                               </div>
                               <div className="space-y-1">
-                                <p className="font-semibold text-white">
+                                <p className="font-semibold text-slate-900">
                                   Tidak ada dokumen ditemukan
                                 </p>
-                                <p className="text-xs text-slate-400">
+                                <p className="text-xs text-slate-500">
                                   Belum ada data kontrak atau MoU yang sesuai
                                   dengan filter atau tab yang kamu pilih saat
                                   ini.
@@ -587,7 +595,7 @@ function ContractsContent() {
                                 <button
                                   type="button"
                                   onClick={handleResetFilter}
-                                  className="mt-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/20"
+                                  className="mt-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
                                 >
                                   Reset Filter
                                 </button>
@@ -603,21 +611,23 @@ function ContractsContent() {
             </section>
           </div>
         </main>
+
         <UploadDocumentModal
           isOpen={isUploadOpen}
           onClose={() => setIsUploadOpen(false)}
           onSuccess={fetchDocuments}
           secureMode={isSecureMode}
         />
+
         {isTrashOpen && user?.role === "admin" && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-amber-500/30 bg-[#0b1f14]/95 text-slate-100 shadow-2xl backdrop-blur-2xl">
-              <div className="flex items-center justify-between border-b border-amber-500/20 px-6 py-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+            <div className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-hidden rounded-3xl border border-slate-200 bg-white text-slate-900 shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">
+                  <h2 className="text-lg font-bold text-slate-900">
                     Arsip Terhapus
                   </h2>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500">
                     Pulihkan dokumen yang sebelumnya dihapus.
                   </p>
                 </div>
@@ -625,18 +635,18 @@ function ContractsContent() {
                   type="button"
                   onClick={() => setIsTrashOpen(false)}
                   aria-label="Tutup arsip terhapus"
-                  className="p-1 text-xl leading-none text-slate-400 hover:text-white"
+                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                   &times;
                 </button>
               </div>
               <div className="max-h-[calc(100vh-10rem)] overflow-y-auto p-6">
                 {loadingTrash ? (
-                  <p className="py-8 text-center text-sm text-slate-400">
+                  <p className="py-8 text-center text-sm text-slate-500">
                     Memuat arsip terhapus...
                   </p>
                 ) : trashError ? (
-                  <p className="py-8 text-center text-sm text-rose-400">
+                  <p className="py-8 text-center text-sm text-rose-600">
                     {trashError}
                   </p>
                 ) : trashedDocuments.length === 0 ? (
@@ -648,13 +658,13 @@ function ContractsContent() {
                     {trashedDocuments.map((document) => (
                       <div
                         key={document.id}
-                        className="flex flex-col gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-white">
+                          <p className="truncate text-sm font-semibold text-slate-900">
                             {document.document_name}
                           </p>
-                          <p className="mt-1 text-xs text-slate-400">
+                          <p className="mt-1 text-xs text-slate-500">
                             {document.document_number} &middot; Dihapus{" "}
                             {document.deleted_at
                               ? new Date(
@@ -667,7 +677,7 @@ function ContractsContent() {
                           type="button"
                           onClick={() => handleRestore(document.id)}
                           disabled={restoringId === document.id}
-                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           <RotateCcw
                             className="h-3.5 w-3.5"
@@ -694,7 +704,7 @@ export default function ContractsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-[#07150e] text-emerald-400">
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 text-emerald-600">
           Memuat halaman...
         </div>
       }
