@@ -27,14 +27,16 @@ Route::prefix('v1')->group(function () {
         Route::get('documents/trash', [DocumentController::class, 'trashed']);
         Route::post('documents/{id}/restore', [DocumentController::class, 'restore']);
 
-        // TAMBAHAN: Rute khusus preview & download dokumen (Harus diletakkan di atas apiResource)
-        Route::get('documents/{id}/preview', [DocumentController::class, 'preview']);
-        Route::get('documents/{id}/download', [DocumentController::class, 'download']);
+        // Rute khusus preview & download dokumen dengan proteksi Rate Limiter (Throttle: 30 req/min)
+        Route::middleware('throttle:30,1')->group(function () {
+            Route::get('documents/{id}/preview', [DocumentController::class, 'preview']);
+            Route::get('documents/{id}/download', [DocumentController::class, 'download']);
+        });
 
         Route::apiResource('documents', DocumentController::class);
         
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
-        // PERBAIKAN: Arahkan post versions ke DocumentController karena method storeVersion ada di sana
+        // Arahkan post versions ke DocumentController karena method storeVersion ada di sana
         Route::post('documents/{document}/versions', [DocumentController::class, 'storeVersion']);
 
         // List Project untuk Dropdown Upload
