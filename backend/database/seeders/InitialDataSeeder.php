@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Project;
 use App\Models\User;
-use App\Models\ContractType; // Pastikan model ContractType di-import
+use App\Models\ContractType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -22,8 +22,8 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
-        // 2. Proyek Awal
-        Project::firstOrCreate(
+        // 2. Proyek Awal (Diseragamkan menggunakan updateOrCreate)
+        Project::updateOrCreate(
             ['project_code' => 'PRJ-MOU-001'],
             [
                 'project_name' => 'Kerja Sama Digital Transformation',
@@ -35,7 +35,7 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
-        // 3. Master Jenis Kontrak Kerja & MoU (Idempotent Seeder)
+        // 3. Master Jenis Kontrak Kerja & MoU
         $contractTypes = [
             [
                 'code' => 'PKWT',
