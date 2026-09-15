@@ -297,28 +297,31 @@ class DocumentController extends Controller
             'file'           => 'required|file|mimes:pdf|max:20480',
         ]);
 
+        $file = $request->file('file');
+        $originalName = $file->getClientOriginalName();
+        $fileContent = file_get_contents($file->getRealPath());
+
+        $encryptionKey = config('app.key');
+        if (str_starts_with($encryptionKey, 'base64:')) {
+            $encryptionKey = base64_decode(substr($encryptionKey, 7));
+        }
+
+        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+        $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
+        $payload = base64_encode($iv . $encryptedContent);
+
+        $path = 'documents/contracts/' . uniqid() . '.enc';
+        Storage::disk('private_encrypted')->put($path, $payload);
+
+        $fileHash = hash_file('sha256', $file->getRealPath());
+
         try {
             DB::beginTransaction();
 
-            $file = $request->file('file');
-            $originalName = $file->getClientOriginalName();
-            $fileContent = file_get_contents($file->getRealPath());
+            // Set versi sebelumnya menjadi non-aktif (is_current = false)
+            $document->versions()->update(['is_current' => false]);
 
-            $encryptionKey = config('app.key');
-            if (str_starts_with($encryptionKey, 'base64:')) {
-                $encryptionKey = base64_decode(substr($encryptionKey, 7));
-            }
-
-            $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-            $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-            $payload = base64_encode($iv . $encryptedContent);
-
-            $path = 'documents/contracts/' . uniqid() . '.enc';
-            Storage::disk('private_encrypted')->put($path, $payload);
-
-            $fileHash = hash_file('sha256', $file->getRealPath());
-
-            DocumentVersion::create([
+            $version = DocumentVersion::create([
                 'document_id'    => $document->id,
                 'version_number' => $validated['version_number'],
                 'file_path'      => $path,
@@ -341,6 +344,12 @@ class DocumentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            // Hapus file fisik jika transaksi database gagal
+            if (Storage::disk('private_encrypted')->exists($path)) {
+                Storage::disk('private_encrypted')->delete($path);
+            }
+
             return response()->json([
                 'message' => 'Gagal mengunggah versi baru.',
                 'error'   => $e->getMessage()
