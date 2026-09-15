@@ -36,6 +36,7 @@ class InitialDataSeeder extends Seeder
         );
 
         // 3. Master Jenis Kontrak Kerja & MoU
+       // 3. Master Jenis Kontrak Kerja & MoU (Idempoten dengan SoftDeletes)
         $contractTypes = [
             [
                 'code' => 'PKWT',
@@ -60,13 +61,25 @@ class InitialDataSeeder extends Seeder
         ];
 
         foreach ($contractTypes as $type) {
-            ContractType::updateOrCreate(
-                ['code' => $type['code']], // Idempoten berdasarkan kode
+            // Cari termasuk data yang sudah di-soft delete
+            $contractType = ContractType::withTrashed()->firstOrCreate(
+                ['code' => $type['code']],
                 [
                     'name' => $type['name'],
                     'description' => $type['description'],
                 ]
             );
+
+            // Jika datanya ternyata sebelumnya terhapus (soft deleted), pulihkan dan update
+            if ($contractType->trashed()) {
+                $contractType->restore();
+            }
+
+            // Pastikan data/nama/deskripsi tetap sinkron dengan versi terbaru
+            $contractType->update([
+                'name' => $type['name'],
+                'description' => $type['description'],
+            ]);
         }
     }
 }
