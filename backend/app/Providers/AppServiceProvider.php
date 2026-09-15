@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Database\Eloquent\Model; // <-- Tambahkan import ini di atas
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Mengaktifkan pencegahan lazy loading (aktif otomatis di luar mode production)
+        Model::preventLazyLoading(! app()->isProduction());
     }
 }
