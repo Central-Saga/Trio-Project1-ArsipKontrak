@@ -3,7 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule; // <-- 1. Tambahkan import Rule
+use Illuminate\Validation\Rule;
 
 class StoreDocumentVersionRequest extends FormRequest
 {
@@ -14,12 +14,11 @@ class StoreDocumentVersionRequest extends FormRequest
 
     public function rules(): array
     {
-        // Mendapatkan ID dokumen dari parameter route (misal: /api/v1/documents/{document}/versions)
+        // Mendapatkan ID dokumen dari parameter route
         $document = $this->route('document');
         $documentId = $document ? $document->id : null;
 
         return [
-            // 2. Beri validasi unik bersyarat per document_id jika diisi
             'version_number' => [
                 'nullable', 
                 'string', 
@@ -28,8 +27,8 @@ class StoreDocumentVersionRequest extends FormRequest
                     return $query->where('document_id', $documentId);
                 }),
             ],
-            'file'           => ['required', 'file', 'mimes:pdf', 'max:20480'], // Wajib PDF, max 20MB
-            'notes'          => ['nullable', 'string', 'max:500'],
+            'file'  => ['required', 'file', 'mimes:pdf', 'max:20480'], // Wajib PDF, max 20MB
+            'notes' => ['required', 'string', 'max:500'],             // Diubah menjadi required (Wajib Changelog)
         ];
     }
 
@@ -40,6 +39,7 @@ class StoreDocumentVersionRequest extends FormRequest
             'file.required'         => 'File revisi kontrak wajib diunggah.',
             'file.mimes'            => 'File revisi harus berupa dokumen PDF.',
             'file.max'              => 'Ukuran file revisi maksimal 20 MB.',
+            'notes.required'        => 'Changelog atau catatan revisi wajib diisi.', // Pesan error kustom
         ];
     }
 }
