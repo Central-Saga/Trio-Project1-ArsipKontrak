@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\ContractType; // Pastikan model ContractType di-import
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -33,5 +34,39 @@ class InitialDataSeeder extends Seeder
                 'status'       => 'active',
             ]
         );
+
+        // 3. Master Jenis Kontrak Kerja & MoU (Idempotent Seeder)
+        $contractTypes = [
+            [
+                'code' => 'PKWT',
+                'name' => 'PKWT (Perjanjian Kerja Waktu Tertentu)',
+                'description' => 'Kontrak kerja untuk pegawai kontrak dalam jangka waktu tertentu.',
+            ],
+            [
+                'code' => 'PKWTT',
+                'name' => 'PKWTT (Perjanjian Kerja Waktu Tidak Tertentu)',
+                'description' => 'Kontrak kerja untuk pegawai tetap.',
+            ],
+            [
+                'code' => 'MOU',
+                'name' => 'MoU (Memorandum of Understanding)',
+                'description' => 'Nota kesepahaman kerja sama awal antar instansi atau perusahaan.',
+            ],
+            [
+                'code' => 'VENDOR',
+                'name' => 'Kontrak Kerja Sama Vendor / Mitra',
+                'description' => 'Perjanjian pengadaan barang atau jasa dengan pihak ketiga.',
+            ],
+        ];
+
+        foreach ($contractTypes as $type) {
+            ContractType::updateOrCreate(
+                ['code' => $type['code']], // Idempoten berdasarkan kode
+                [
+                    'name' => $type['name'],
+                    'description' => $type['description'],
+                ]
+            );
+        }
     }
 }
