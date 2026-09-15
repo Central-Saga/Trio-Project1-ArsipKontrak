@@ -22,6 +22,16 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
+        // 1.b Akun Viewer Awal (Ditambahkan agar tidak hilang saat migrate:fresh)
+        User::updateOrCreate(
+            ['email' => 'viewer@example.com'],
+            [
+                'name'     => 'Viewer User',
+                'password' => Hash::make('password123'),
+                'role'     => 'viewer',
+            ]
+        );
+
         // 2. Proyek Awal (Diseragamkan menggunakan updateOrCreate)
         Project::updateOrCreate(
             ['project_code' => 'PRJ-MOU-001'],
@@ -35,8 +45,7 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
-        // 3. Master Jenis Kontrak Kerja & MoU
-       // 3. Master Jenis Kontrak Kerja & MoU (Idempoten dengan SoftDeletes)
+        // 3. Master Jenis Kontrak Kerja & MoU (Idempoten dengan SoftDeletes)
         $contractTypes = [
             [
                 'code' => 'PKWT',

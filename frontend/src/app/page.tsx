@@ -21,6 +21,7 @@ import {
 import api from "../lib/api";
 import { DocumentItem } from "../types/document";
 import UploadDocumentModal from "../components/UploadDocumentModal";
+import NotificationBell from "@/components/NotificationBell"; // <-- Komponen Lonceng Notifikasi
 
 interface CurrentUser {
   id: number;
@@ -188,7 +189,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Sidebar dengan Kurva Transisi Halus & Fade Text */}
+      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:flex ${
           isSidebarOpen ? "w-64" : "w-20"
@@ -321,7 +322,7 @@ export default function DashboardPage() {
           </nav>
         </div>
 
-        {/* Tombol Keluar (Hanya Ikon) */}
+        {/* Tombol Keluar */}
         <div className="border-t border-slate-200 pt-4">
           <button
             type="button"
@@ -337,7 +338,7 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* Main Content dengan Transisi Margin Fleksibel */}
+      {/* Main Content */}
       <div
         className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isSidebarOpen ? "md:ml-64" : "md:ml-20"
@@ -382,6 +383,9 @@ export default function DashboardPage() {
                 </>
               )}
             </button>
+
+            {/* Komponen Lonceng Notifikasi */}
+            <NotificationBell />
 
             {user?.role === "admin" && (
               <button
@@ -564,11 +568,14 @@ export default function DashboardPage() {
                                 }`}
                                 title={`Status: ${doc.status}`}
                               />
-                              <div>
-                                <div className="text-sm font-semibold text-slate-900">
+                              <div className="min-w-0 max-w-xs sm:max-w-sm md:max-w-md">
+                                <div
+                                  className="text-sm font-semibold text-slate-900 truncate"
+                                  title={doc.title || doc.document_name}
+                                >
                                   {doc.title || doc.document_name}
                                 </div>
-                                <div className="text-xs text-slate-400">
+                                <div className="text-xs text-slate-400 truncate">
                                   {doc.document_number}
                                 </div>
                               </div>

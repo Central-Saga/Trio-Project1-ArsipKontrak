@@ -6,3 +6,19 @@
     [34mcreated_at[39m: [32m"[39m[32m2026-09-11 03:01:44[39m[32m"[39m,
     [34mid[39m: [35m1[39m,
   }
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#8701
+    [34mall[39m: [
+      [34;4mApp\Models\User[39;24m {#8698
+        [34mid[39m: [35m1[39m,
+        [34mname[39m: [32m"[39m[32mAdministrator[39m[32m"[39m,
+        [34memail[39m: [32m"[39m[32madmin@example.com[39m[32m"[39m,
+        [34memail_verified_at[39m: [36mnull[39m,
+        #[33mpassword[39m: [32m"[39m\$[32m2y[39m\$[32m12[39m\$[32myLQ4Vj7ZdgiEoN9.wmitGOwc0qMf8yGzMxc1htR14/3uGdIQ4QWi.[39m[32m"[39m,
+        [34mrole[39m: [32m"[39m[32madmin[39m[32m"[39m,
+        [34mstatus[39m: [32m"[39m[32mactive[39m[32m"[39m,
+        #[33mremember_token[39m: [36mnull[39m,
+        [34mcreated_at[39m: [32m"[39m[32m2026-09-15 01:41:34[39m[32m"[39m,
+        [34mupdated_at[39m: [32m"[39m[32m2026-09-15 01:49:17[39m[32m"[39m,
+      },
+    ],
+  }

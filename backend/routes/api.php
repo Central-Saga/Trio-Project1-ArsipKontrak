@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentVersionController;
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -13,7 +14,7 @@ Route::prefix('v1')->group(function () {
     // Auth Public
     Route::post('/login', [AuthController::class, 'login']);
 
-    // Auth Protected (Semua endpoint dokumen, versi, project, dan auth user diproteksi Sanctum)
+    // Auth Protected (Semua endpoint dokumen, versi, project, notifikasi, dan auth user diproteksi Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
         // Auth User
         Route::get('/me', [AuthController::class, 'me']);
@@ -46,5 +47,10 @@ Route::prefix('v1')->group(function () {
 
         // Rute log aktivitas untuk admin
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
+
+        // Rute Notifikasi Pengguna
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
     });
 });
