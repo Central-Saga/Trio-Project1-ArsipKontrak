@@ -144,6 +144,41 @@ class DocumentUploadTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_file_sha256_checksum_is_correctly_calculated_and_stored(): void
+    {
+        Storage::fake('local');
+        Storage::fake('private_encrypted');
+
+        $file = UploadedFile::fake()->create('dokumen_hash.pdf', 1024, 'application/pdf');
+        
+        // Hitung hash SHA-256 dari file uji lokal
+        $expectedHash = hash_file('sha256', $file->getRealPath());
+
+        $payload = [
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/HASH/2026/001',
+            'document_name'   => 'Dokumen Uji Hash SHA-256',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Checksum Indonesia',
+            'document_date'   => '2026-09-08',
+            'effective_date'  => '2026-09-10',
+            'expiry_date'     => '2027-09-10',
+            'status'          => 'active',
+            'file'            => $file,
+        ];
+
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/v1/documents', $payload);
+
+        $response->assertStatus(201);
+
+        $documentVersion = DocumentVersion::first();
+
+        // Verifikasi bahwa file_hash di database sama persis dengan hash file asli
+        $this->assertEquals($expectedHash, $documentVersion->file_hash);
+        $this->assertEquals(64, strlen($documentVersion->file_hash));
+    }
+
     public function test_can_upload_new_version_and_updates_previous_version_current_flag(): void
     {
         Storage::fake('local');
