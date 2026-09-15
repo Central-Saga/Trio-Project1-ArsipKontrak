@@ -233,9 +233,12 @@ class DocumentController extends Controller
                 return response()->json(['message' => 'Gagal mendekripsi berkas PDF.'], 500);
             }
 
+            // Sanitasi nama file untuk header Content-Disposition
+            $safeFilename = preg_replace('/[\r\n\t[:cntrl:]]+/', '', basename($version->file_name));
+
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . $version->file_name . '"',
+                'Content-Disposition' => 'inline; filename="' . addslashes($safeFilename) . '"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -276,9 +279,12 @@ class DocumentController extends Controller
                 return response()->json(['message' => 'Gagal mendekripsi berkas PDF.'], 500);
             }
 
+            // Sanitasi nama file untuk header Content-Disposition
+            $safeFilename = preg_replace('/[\r\n\t[:cntrl:]]+/', '', basename($version->file_name));
+
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="' . $version->file_name . '"',
+                'Content-Disposition' => 'attachment; filename="' . addslashes($safeFilename) . '"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
