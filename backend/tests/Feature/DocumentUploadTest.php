@@ -115,6 +115,35 @@ class DocumentUploadTest extends TestCase
             ->assertJsonValidationErrors(['file']);
     }
 
+    public function test_non_admin_cannot_view_confidential_document(): void
+    {
+        Storage::fake('local');
+        Storage::fake('private_encrypted');
+
+        $viewerUser = User::factory()->create([
+            'email' => 'viewer@arsipkontrak.local',
+            'role' => 'viewer',
+        ]);
+
+        $document = Document::create([
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/NDA/2026/999',
+            'document_name'   => 'Dokumen NDA Rahasia Perusahaan',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Rahasia Bersama',
+            'document_date'   => '2026-09-08',
+            'effective_date'  => '2026-09-10',
+            'expiry_date'     => '2027-09-10',
+            'status'          => 'active',
+            'created_by'      => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($viewerUser)
+            ->getJson("/api/v1/documents/{$document->id}");
+
+        $response->assertStatus(403);
+    }
+
     public function test_can_upload_new_version_and_updates_previous_version_current_flag(): void
     {
         Storage::fake('local');
@@ -198,7 +227,6 @@ class DocumentUploadTest extends TestCase
         ]);
 
         // Panggil endpoint atau jalankan perintah/job pengecekan status expired (sesuai implementasi backend proyekmu)
-        // Contoh jika menggunakan endpoint pengecekan atau cron / controller update status:
         $response = $this->actingAs($this->user)
             ->getJson("/api/v1/documents/{$document->id}");
 
@@ -212,4 +240,3 @@ class DocumentUploadTest extends TestCase
         ]);
     }
 }
-
