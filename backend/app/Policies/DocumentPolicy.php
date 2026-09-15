@@ -21,7 +21,18 @@ class DocumentPolicy
      */
     public function view(User $user, Document $document): bool
     {
-        // Admin dan Viewer boleh melihat detail dokumen
+        // Cek apakah dokumen dikategorikan Rahasia / NDA
+        $isConfidential = str_contains(strtolower($document->document_name), 'nda') || 
+                          str_contains(strtolower($document->document_name), 'rahasia') ||
+                          str_contains(strtolower($document->description ?? ''), 'nda') ||
+                          str_contains(strtolower($document->description ?? ''), 'rahasia');
+
+        if ($isConfidential) {
+            // Dokumen NDA/Rahasia hanya boleh dilihat oleh admin
+            return $user->role === 'admin';
+        }
+
+        // Dokumen biasa boleh dilihat oleh admin dan user lainnya
         return true; 
     }
 
