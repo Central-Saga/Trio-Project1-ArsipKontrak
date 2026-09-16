@@ -21,10 +21,10 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Ambil data notifikasi dari API Laravel
+  // Ambil data notifikasi dari API Laravel (Diubah tanpa /v1 karena sudah di base URL)
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get("/v1/notifications");
+      const response = await axios.get("/notifications");
       setNotifications(response.data.notifications);
       setUnreadCount(response.data.unread_count);
     } catch (error) {
@@ -56,7 +56,7 @@ export default function NotificationBell() {
   // Tandai satu notifikasi sudah dibaca
   const markAsRead = async (id: number) => {
     try {
-      await axios.post(`/v1/notifications/${id}/read`);
+      await axios.post(`/notifications/${id}/read`);
       fetchNotifications();
     } catch (error) {
       console.error("Gagal menandai dibaca:", error);
@@ -66,7 +66,7 @@ export default function NotificationBell() {
   // Tandai semua dibaca
   const markAllAsRead = async () => {
     try {
-      await axios.post("/v1/notifications/read-all");
+      await axios.post("/notifications/read-all");
       fetchNotifications();
     } catch (error) {
       console.error("Gagal menandai semua dibaca:", error);

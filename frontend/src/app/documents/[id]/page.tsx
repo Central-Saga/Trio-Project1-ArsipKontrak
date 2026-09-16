@@ -33,6 +33,13 @@ interface DocumentDetail {
   versions: VersionItem[];
 }
 
+interface CurrentUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export default function DocumentDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -45,10 +52,22 @@ export default function DocumentDetailPage() {
     null,
   );
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [user, setUser] = useState<CurrentUser | null>(null);
 
-  // State untuk menangani blob pratinjau PDF agar aman dari error token auth iframe
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    const storedUser =
+      localStorage.getItem("user_data") || localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
+      }
+    }
+  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -72,7 +91,6 @@ export default function DocumentDetailPage() {
     fetchDetail();
   }, [fetchDetail]);
 
-  // Efek untuk memuat file preview terenkripsi menggunakan token axios
   useEffect(() => {
     let objectUrl: string | null = null;
     const loadPreview = async () => {
@@ -87,7 +105,10 @@ export default function DocumentDetailPage() {
         );
         const blob = new Blob([response.data], { type: "application/pdf" });
         objectUrl = window.URL.createObjectURL(blob);
-        setPreviewUrl(objectUrl);
+
+        const finalUrl =
+          user?.role === "admin" ? objectUrl : `${objectUrl}#toolbar=0`;
+        setPreviewUrl(finalUrl);
       } catch (err) {
         console.error("Gagal memuat pratinjau PDF", err);
         setPreviewUrl(null);
@@ -103,7 +124,7 @@ export default function DocumentDetailPage() {
         window.URL.revokeObjectURL(objectUrl);
       }
     };
-  }, [selectedVersionId, id]);
+  }, [selectedVersionId, id, user?.role]);
 
   const handleDownload = async (versionId: number) => {
     try {
@@ -143,6 +164,22 @@ export default function DocumentDetailPage() {
     }
   };
 
+  // Helper untuk menentukan warna badge status secara dinamis dan aman
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "active":
+        return "bg-emerald-100 text-emerald-800 border border-emerald-200";
+      case "draft":
+        return "bg-amber-100 text-amber-800 border border-amber-200";
+      case "expired":
+        return "bg-rose-100 text-rose-800 border border-rose-200";
+      case "terminated":
+        return "bg-slate-200 text-slate-800 border border-slate-300";
+      default:
+        return "bg-slate-100 text-slate-800 border border-slate-200";
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 text-sm">
@@ -178,12 +215,14 @@ export default function DocumentDetailPage() {
             <ArrowLeft className="h-4 w-4" /> Kembali ke Dashboard
           </button>
 
-          <button
-            onClick={() => setIsVersionModalOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 transition"
-          >
-            <Plus className="h-4 w-4" /> Unggah Versi Baru / Adendum
-          </button>
+          {user?.role === "admin" && (
+            <button
+              onClick={() => setIsVersionModalOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-500 transition"
+            >
+              <Plus className="h-4 w-4" /> Unggah Versi Baru / Adendum
+            </button>
+          )}
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
@@ -193,15 +232,9 @@ export default function DocumentDetailPage() {
                 <Lock className="h-3 w-3" /> {docDetail.document_number}
               </span>
               <span
-                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                  docDetail.status.toLowerCase() === "active"
-                    ? "bg-emerald-100 text-emerald-800"
-                    : docDetail.status.toLowerCase() === "draft"
-                      ? "bg-amber-100 text-amber-800"
-                      : docDetail.status.toLowerCase() === "expired"
-                        ? "bg-rose-100 text-rose-800 border border-rose-200" // Warna merah untuk status expired
-                        : "bg-slate-100 text-slate-800"
-                }`}
+                className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold uppercase ${getStatusBadgeStyle(
+                  docDetail.status,
+                )}`}
               >
                 {docDetail.status}
               </span>
@@ -307,7 +340,9 @@ export default function DocumentDetailPage() {
                   <th className="px-6 py-3.5">SHA-256 Checksum Hash</th>
                   <th className="px-6 py-3.5">Catatan Revisi</th>
                   <th className="px-6 py-3.5">Pengunggah</th>
-                  <th className="px-6 py-3.5 text-right">Aksi Unduh</th>
+                  {user?.role === "admin" && (
+                    <th className="px-6 py-3.5 text-right">Aksi Unduh</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
@@ -330,14 +365,16 @@ export default function DocumentDetailPage() {
                     <td className="px-6 py-4 text-slate-600">
                       {ver.uploader?.name || "Admin"}
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleDownload(ver.id)}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
-                      >
-                        <Download className="h-3.5 w-3.5" /> Unduh PDF
-                      </button>
-                    </td>
+                    {user?.role === "admin" && (
+                      <td className="px-6 py-4 text-right">
+                        <button
+                          onClick={() => handleDownload(ver.id)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Unduh PDF
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -391,12 +428,14 @@ export default function DocumentDetailPage() {
         </div>
       </div>
 
-      <UploadVersionModal
-        isOpen={isVersionModalOpen}
-        onClose={() => setIsVersionModalOpen(false)}
-        onSuccess={fetchDetail}
-        documentId={Number(id)}
-      />
+      {user?.role === "admin" && (
+        <UploadVersionModal
+          isOpen={isVersionModalOpen}
+          onClose={() => setIsVersionModalOpen(false)}
+          onSuccess={fetchDetail}
+          documentId={Number(id)}
+        />
+      )}
     </div>
   );
 }

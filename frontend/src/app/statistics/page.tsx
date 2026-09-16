@@ -293,7 +293,7 @@ export default function StatisticsPage() {
       <div
         className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}
       >
-        <header className="relative z-10 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
+        <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
               SAGA ARSIP
@@ -325,7 +325,7 @@ export default function StatisticsPage() {
               </button>
               {isProfileMenuOpen && (
                 <div
-                  className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-slate-200 bg-white py-2 text-slate-800 shadow-xl"
+                  className="absolute right-0 top-12 z-[100] w-56 rounded-2xl border border-slate-200 bg-white py-2 text-slate-800 shadow-xl"
                   role="menu"
                 >
                   <div className="mb-1 border-b border-slate-100 px-4 py-3">

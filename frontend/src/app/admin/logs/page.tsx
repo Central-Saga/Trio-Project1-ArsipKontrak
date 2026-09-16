@@ -11,6 +11,8 @@ import {
   LogOut,
   Menu,
   ShieldAlert,
+  ShieldCheck,
+  User,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -21,7 +23,7 @@ interface CurrentUser {
   role: string;
 }
 
-interface User {
+interface ActivityUser {
   name: string;
   role: string;
 }
@@ -32,7 +34,7 @@ interface ActivityLog {
   action: string;
   description: string;
   ip_address: string | null;
-  user?: User;
+  user?: ActivityUser;
 }
 
 export default function ActivityLogsPage() {
@@ -115,11 +117,15 @@ export default function ActivityLogsPage() {
     <div className="flex min-h-screen bg-slate-50 text-slate-900">
       {/* Sidebar Light Theme */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:flex ${isSidebarOpen ? "w-64" : "w-20"}`}
+        className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-in-out md:flex ${
+          isSidebarOpen ? "w-64" : "w-20"
+        }`}
       >
         <div>
           <div
-            className={`mb-8 flex items-center ${isSidebarOpen ? "justify-between" : "justify-center"}`}
+            className={`mb-8 flex items-center ${
+              isSidebarOpen ? "justify-between" : "justify-center"
+            }`}
           >
             {isSidebarOpen && (
               <div className="flex min-w-0 items-center gap-2 px-2">
@@ -145,7 +151,9 @@ export default function ActivityLogsPage() {
               type="button"
               onClick={() => router.push("/")}
               title="Dashboard"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
               <LayoutDashboard
                 className="h-5 w-5 shrink-0"
@@ -157,7 +165,9 @@ export default function ActivityLogsPage() {
               type="button"
               onClick={() => router.push("/contracts")}
               title="Kontrak & MoU"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
               <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />
               {isSidebarOpen && <span>Kontrak &amp; MoU</span>}
@@ -166,7 +176,9 @@ export default function ActivityLogsPage() {
               type="button"
               onClick={() => router.push("/statistics")}
               title="Ringkasan"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                isSidebarOpen ? "" : "justify-center"
+              }`}
             >
               <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
               {isSidebarOpen && <span>Ringkasan</span>}
@@ -176,7 +188,9 @@ export default function ActivityLogsPage() {
                 type="button"
                 onClick={() => router.push("/admin/logs")}
                 title="Log Aktivitas"
-                className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${isSidebarOpen ? "" : "justify-center"}`}
+                className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${
+                  isSidebarOpen ? "" : "justify-center"
+                }`}
               >
                 <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
                 {isSidebarOpen && <span>Log Aktivitas</span>}
@@ -200,7 +214,9 @@ export default function ActivityLogsPage() {
 
       {/* Main Content Area */}
       <div
-        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? "md:ml-64" : "md:ml-20"}`}
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? "md:ml-64" : "md:ml-20"
+        }`}
       >
         <header className="relative z-50 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 shadow-sm">
           <div>
@@ -334,42 +350,68 @@ export default function ActivityLogsPage() {
                       </td>
                     </tr>
                   ) : (
-                    logs.map((log) => (
-                      <tr
-                        key={log.id}
-                        className="hover:bg-slate-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                          {new Date(log.created_at).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                          {log.user
-                            ? `${log.user.name} (${log.user.role})`
-                            : "Sistem / Tidak Diketahui"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className="px-2.5 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            {log.action}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate">
-                          {log.description}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                          {log.ip_address || "-"}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                          <button
-                            type="button"
-                            onClick={() => openLogDetail(log)}
-                            title="Lihat Detail"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition"
-                          >
-                            <Eye className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                    logs.map((log) => {
+                      const isAdmin = log.user?.role?.toLowerCase() === "admin";
+                      return (
+                        <tr
+                          key={log.id}
+                          className="hover:bg-slate-50 transition-colors"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                            {new Date(log.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            {log.user ? (
+                              <div className="flex items-center gap-2">
+                                {/* Badge Role Berwarna Khusus Admin */}
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                                    isAdmin
+                                      ? "bg-purple-50 text-purple-700 border-purple-200"
+                                      : "bg-slate-100 text-slate-700 border-slate-200"
+                                  }`}
+                                >
+                                  {isAdmin ? (
+                                    <ShieldCheck className="h-3 w-3 text-purple-600" />
+                                  ) : (
+                                    <User className="h-3 w-3 text-slate-500" />
+                                  )}
+                                  {log.user.role}
+                                </span>
+                                <span className="font-medium text-slate-900">
+                                  {log.user.name}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">
+                                Sistem / Tidak Diketahui
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className="px-2.5 py-1 inline-flex text-xs leading-4 font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {log.action}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 max-w-xs truncate">
+                            {log.description}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                            {log.ip_address || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                            <button
+                              type="button"
+                              onClick={() => openLogDetail(log)}
+                              title="Lihat Detail"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition"
+                            >
+                              <Eye className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -419,11 +461,31 @@ export default function ActivityLogsPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
                     Pengguna
                   </span>
-                  <span className="font-medium text-slate-800">
-                    {selectedLog.user
-                      ? `${selectedLog.user.name} (${selectedLog.user.role})`
-                      : "Sistem / Tidak Diketahui"}
-                  </span>
+                  {selectedLog.user ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                          selectedLog.user.role.toLowerCase() === "admin"
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-slate-100 text-slate-700 border-slate-200"
+                        }`}
+                      >
+                        {selectedLog.user.role.toLowerCase() === "admin" ? (
+                          <ShieldCheck className="h-3 w-3 text-purple-600" />
+                        ) : (
+                          <User className="h-3 w-3 text-slate-500" />
+                        )}
+                        {selectedLog.user.role}
+                      </span>
+                      <span className="font-medium text-slate-900">
+                        {selectedLog.user.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="font-medium text-slate-500 italic">
+                      Sistem / Tidak Diketahui
+                    </span>
+                  )}
                 </div>
                 <div>
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block mb-1">
