@@ -32,6 +32,17 @@ export default function UploadDocumentModal({
   // State untuk popup sukses
   const [successPopup, setSuccessPopup] = useState(false);
 
+  // Ambil tanggal hari ini berdasarkan waktu lokal perangkat (Format: YYYY-MM-DD)
+  const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalDateString();
+
   useEffect(() => {
     if (isOpen) {
       const randomCode = Math.floor(1000 + Math.random() * 9000);
@@ -55,6 +66,22 @@ export default function UploadDocumentModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi ketat tanggal masa lalu saat submit
+    if (startDate < todayStr) {
+      setError(
+        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
+      );
+      return;
+    }
+
+    if (endDate < startDate || endDate < todayStr) {
+      setError(
+        "Tanggal berakhir tidak valid atau mendahului hari ini/tanggal mulai.",
+      );
+      return;
+    }
+
     if (!file) {
       setError("Silakan pilih berkas PDF dokumen terlebih dahulu.");
       return;
@@ -127,8 +154,6 @@ export default function UploadDocumentModal({
       setLoading(false);
     }
   };
-
-  const todayStr = new Date().toISOString().split("T")[0];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 overflow-y-auto">
@@ -268,7 +293,17 @@ export default function UploadDocumentModal({
                 required
                 min={todayStr}
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  if (selectedDate < todayStr) {
+                    setError(
+                      "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
+                    );
+                  } else {
+                    setError(null);
+                    setStartDate(selectedDate);
+                  }
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -282,7 +317,20 @@ export default function UploadDocumentModal({
                 required
                 min={startDate || todayStr}
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => {
+                  const selectedDate = e.target.value;
+                  if (
+                    selectedDate < todayStr ||
+                    (startDate && selectedDate < startDate)
+                  ) {
+                    setError(
+                      "Tanggal berakhir tidak valid atau mendahului tanggal mulai.",
+                    );
+                  } else {
+                    setError(null);
+                    setEndDate(selectedDate);
+                  }
+                }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>

@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   BarChart3,
+  Edit,
   Eye,
   FileText,
   Folder,
@@ -98,6 +100,19 @@ function ContractsContent() {
       setLoadingTrash(false);
     }
   }, [user]);
+
+  // Fungsi untuk menghapus dokumen (Soft Delete)
+  const handleDeleteDocument = async (id: number) => {
+    if (!window.confirm("Apakah kamu yakin ingin menghapus dokumen ini?")) {
+      return;
+    }
+    try {
+      await api.delete(`/documents/${id}`);
+      fetchDocuments();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Gagal menghapus dokumen.");
+    }
+  };
 
   useEffect(() => {
     const storedUser =
@@ -553,20 +568,52 @@ function ContractsContent() {
                                   {document.status.toUpperCase()}
                                 </span>
                               </td>
+
+                              {/* KOLOM AKSI (Hanya ikon untuk Detail, serta Edit & Hapus khusus Admin) */}
                               <td className="p-4 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    router.push(`/documents/${document.id}`)
-                                  }
-                                  className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                                >
-                                  <Eye
-                                    className="h-3.5 w-3.5"
-                                    aria-hidden="true"
-                                  />
-                                  Detail
-                                </button>
+                                <div className="flex items-center justify-end space-x-1.5">
+                                  {/* Tombol Detail (Semua User) */}
+                                  <Link
+                                    href={`/documents/${document.id}`}
+                                    title="Detail Dokumen"
+                                    className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                  >
+                                    <Eye
+                                      className="h-4 w-4"
+                                      aria-hidden="true"
+                                    />
+                                  </Link>
+
+                                  {/* Tombol Edit & Hapus (Khusus Admin) */}
+                                  {user?.role === "admin" && (
+                                    <>
+                                      <Link
+                                        href={`/documents/${document.id}/edit`}
+                                        title="Edit Dokumen"
+                                        className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                      >
+                                        <Edit
+                                          className="h-4 w-4"
+                                          aria-hidden="true"
+                                        />
+                                      </Link>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleDeleteDocument(document.id)
+                                        }
+                                        title="Hapus Dokumen"
+                                        className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                      >
+                                        <Trash2
+                                          className="h-4 w-4"
+                                          aria-hidden="true"
+                                        />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

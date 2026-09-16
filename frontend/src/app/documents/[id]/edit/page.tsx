@@ -26,6 +26,17 @@ export default function EditDocumentPage() {
   // State untuk popup sukses
   const [successPopup, setSuccessPopup] = useState(false);
 
+  // Ambil tanggal hari ini berdasarkan waktu lokal perangkat (Format: YYYY-MM-DD)
+  const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = getLocalDateString();
+
   useEffect(() => {
     if (id) {
       api
@@ -53,6 +64,22 @@ export default function EditDocumentPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validasi ketat tanggal masa lalu saat submit
+    if (documentDate < todayStr) {
+      setError(
+        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
+      );
+      return;
+    }
+
+    if (expiryDate < documentDate || expiryDate < todayStr) {
+      setError(
+        "Tanggal berakhir tidak valid atau mendahului hari ini/tanggal mulai.",
+      );
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
@@ -100,7 +127,7 @@ export default function EditDocumentPage() {
     <div className="min-h-screen bg-slate-50 p-6 md:p-10 relative">
       {/* Popup Sukses Compact Card */}
       {successPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/25 backdrop-blur-xs p-4">
           <div className="w-72 rounded-2xl bg-white p-5 text-center shadow-2xl border border-slate-100 animate-in fade-in zoom-in duration-200">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 shadow-inner">
               <svg
@@ -229,8 +256,19 @@ export default function EditDocumentPage() {
                 <input
                   type="date"
                   required
+                  min={todayStr}
                   value={documentDate}
-                  onChange={(e) => setDocumentDate(e.target.value)}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (selectedDate < todayStr) {
+                      setError(
+                        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
+                      );
+                    } else {
+                      setError(null);
+                      setDocumentDate(selectedDate);
+                    }
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
@@ -242,8 +280,22 @@ export default function EditDocumentPage() {
                 <input
                   type="date"
                   required
+                  min={documentDate || todayStr}
                   value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (
+                      selectedDate < todayStr ||
+                      (documentDate && selectedDate < documentDate)
+                    ) {
+                      setError(
+                        "Tanggal berakhir tidak valid atau mendahului tanggal mulai.",
+                      );
+                    } else {
+                      setError(null);
+                      setExpiryDate(selectedDate);
+                    }
+                  }}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>

@@ -10,7 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Pencil,
+  SquarePen,
   Plus,
   Search,
   ShieldAlert,
@@ -21,6 +21,7 @@ import {
 import api from "../lib/api";
 import { DocumentItem } from "../types/document";
 import UploadDocumentModal from "../components/UploadDocumentModal";
+import NotificationBell from "@/components/NotificationBell";
 
 interface CurrentUser {
   id: number;
@@ -48,6 +49,22 @@ export default function DashboardPage() {
     id: number;
     name: string;
   } | null>(null);
+
+  // Fungsi penentuan warna indikator berdasarkan status database
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case "active":
+        return "bg-emerald-500"; // Hijau
+      case "draft":
+        return "bg-amber-500"; // Oranye / Kuning
+      case "expired":
+        return "bg-rose-500"; // Merah
+      case "terminated":
+        return "bg-slate-400"; // Abu-abu
+      default:
+        return "bg-emerald-500";
+    }
+  };
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -102,7 +119,7 @@ export default function DashboardPage() {
     try {
       await api.post("/logout");
     } catch {
-      // Tetap bersihkan sesi lokal
+      // Ignore error
     } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -152,10 +169,10 @@ export default function DashboardPage() {
 
   const totalArsip = documents.length;
   const activeCount = documents.filter(
-    (doc) => doc.status.toLowerCase() === "active",
+    (doc) => doc.status?.toLowerCase() === "active",
   ).length;
   const contractCount = documents.filter(
-    (doc) => doc.document_type.toLowerCase() === "contract",
+    (doc) => doc.document_type?.toLowerCase() === "contract",
   ).length;
 
   return (
@@ -188,7 +205,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Sidebar dengan Kurva Transisi Halus & Fade Text */}
+      {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col justify-between border-r border-slate-200 bg-white p-4 transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] md:flex ${
           isSidebarOpen ? "w-64" : "w-20"
@@ -321,7 +338,7 @@ export default function DashboardPage() {
           </nav>
         </div>
 
-        {/* Tombol Keluar (Hanya Ikon) */}
+        {/* Tombol Keluar */}
         <div className="border-t border-slate-200 pt-4">
           <button
             type="button"
@@ -337,7 +354,7 @@ export default function DashboardPage() {
         </div>
       </aside>
 
-      {/* Main Content dengan Transisi Margin Fleksibel */}
+      {/* Main Content */}
       <div
         className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isSidebarOpen ? "md:ml-64" : "md:ml-20"
@@ -382,6 +399,9 @@ export default function DashboardPage() {
                 </>
               )}
             </button>
+
+            {/* Komponen Lonceng Notifikasi */}
+            <NotificationBell />
 
             {user?.role === "admin" && (
               <button
@@ -545,79 +565,85 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredDocuments.map((doc) => (
-                        <tr
-                          key={doc.id}
-                          className="hover:bg-slate-50/80 transition-colors"
-                        >
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className={`h-2.5 w-2.5 rounded-full shrink-0 ${
-                                  doc.status.toLowerCase() === "active"
-                                    ? "bg-emerald-500"
-                                    : doc.status.toLowerCase() === "draft"
-                                      ? "bg-amber-500"
-                                      : doc.status.toLowerCase() === "expired"
-                                        ? "bg-rose-500"
-                                        : "bg-slate-400"
-                                }`}
-                                title={`Status: ${doc.status}`}
-                              />
-                              <div>
-                                <div className="text-sm font-semibold text-slate-900">
-                                  {doc.title || doc.document_name}
-                                </div>
-                                <div className="text-xs text-slate-400">
-                                  {doc.document_number}
+                      filteredDocuments.map((doc) => {
+                        const statusColor = getStatusColor(doc.status);
+                        const start =
+                          doc.start_date || doc.effective_date || "";
+                        const expiry = doc.end_date || doc.expiry_date || "";
+
+                        return (
+                          <tr
+                            key={doc.id}
+                            className="hover:bg-slate-50/80 transition-colors"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-2.5">
+                                <span
+                                  className={`h-2.5 w-2.5 rounded-full shrink-0 ${statusColor}`}
+                                  title={`Status: ${doc.status}`}
+                                />
+                                <div className="min-w-0 max-w-xs sm:max-w-sm md:max-w-md">
+                                  <div
+                                    className="text-sm font-semibold text-slate-900 truncate"
+                                    title={doc.title || doc.document_name}
+                                  >
+                                    {doc.title || doc.document_name}
+                                  </div>
+                                  <div className="text-xs text-slate-400 truncate">
+                                    {doc.document_number}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 uppercase">
-                            {doc.document_type}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                            {doc.counterpart_name || doc.partner || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                            {doc.start_date || doc.effective_date || "-"} -{" "}
-                            {doc.end_date || doc.expiry_date || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(`/documents/${doc.id}`)
-                                }
-                                title="Detail Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-150 hover:scale-110"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(`/documents/${doc.id}/edit`)
-                                }
-                                title="Edit Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-150 hover:scale-110"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => confirmDelete(doc)}
-                                title="Hapus Dokumen"
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150 hover:scale-110"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 uppercase">
+                              {doc.document_type}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              {doc.counterpart_name || doc.partner || "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              {start || "-"} - {expiry || "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    router.push(`/documents/${doc.id}`)
+                                  }
+                                  title="Detail Dokumen"
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-all duration-150 hover:scale-110"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+
+                                {user?.role === "admin" && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        router.push(`/documents/${doc.id}/edit`)
+                                      }
+                                      title="Edit Dokumen"
+                                      className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all duration-150 hover:scale-110"
+                                    >
+                                      <SquarePen className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => confirmDelete(doc)}
+                                      title="Hapus Dokumen"
+                                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-all duration-150 hover:scale-110"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

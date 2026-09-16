@@ -49,6 +49,36 @@ class Document extends Model
         ];
     }
 
+    /**
+     * Booted method untuk otomatisasi status berdasarkan tanggal,
+     * dengan tetap menghargai perubahan status manual oleh admin.
+     */
+    protected static function booted()
+    {
+        static::saving(function ($document) {
+            // Jika admin mengubah status secara manual (misal ke terminated/expired/dll),
+            // jangan ditimpa oleh kalkulasi tanggal otomatis.
+            if ($document->isDirty('status')) {
+                return;
+            }
+
+            $today = now()->toDateString();
+
+            // Jika tanggal efektif lebih besar dari hari ini (mulai besok/masa depan)
+            if ($document->effective_date && $document->effective_date->toDateString() > $today) {
+                $document->status = 'draft'; 
+            } 
+            // Jika tanggal kedaluwarsa sudah lewat dari hari ini
+            elseif ($document->expiry_date && $document->expiry_date->toDateString() < $today) {
+                $document->status = 'expired';
+            } 
+            // Jika berada di dalam rentang waktu yang berlaku
+            else {
+                $document->status = 'active';
+            }
+        });
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

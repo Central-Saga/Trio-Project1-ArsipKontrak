@@ -22,7 +22,27 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
-        // 2. Proyek Awal (Diseragamkan menggunakan updateOrCreate)
+        // 1.b Akun Viewer Awal
+        User::updateOrCreate(
+            ['email' => 'viewer@example.com'],
+            [
+                'name'     => 'Yanto',
+                'password' => Hash::make('password123'),
+                'role'     => 'viewer',
+            ]
+        );
+
+        // Tambahkan user Asep sebagai Viewer
+        User::firstOrCreate(
+            ['email' => 'asep@example.com'],
+            [
+                'name'     => 'Asep',
+                'password' => bcrypt('password123'),
+                'role'     => 'viewer',
+            ]
+        );
+
+        // 2. Proyek Awal
         Project::updateOrCreate(
             ['project_code' => 'PRJ-MOU-001'],
             [
@@ -35,49 +55,40 @@ class InitialDataSeeder extends Seeder
             ]
         );
 
-        // 3. Master Jenis Kontrak Kerja & MoU
-       // 3. Master Jenis Kontrak Kerja & MoU (Idempoten dengan SoftDeletes)
+        // 3. Master Jenis Kontrak Kerja & MoU 
         $contractTypes = [
             [
-                'code' => 'PKWT',
-                'name' => 'PKWT (Perjanjian Kerja Waktu Tertentu)',
+                'name'        => 'PKWT (Perjanjian Kerja Waktu Tertentu)',
                 'description' => 'Kontrak kerja untuk pegawai kontrak dalam jangka waktu tertentu.',
             ],
             [
-                'code' => 'PKWTT',
-                'name' => 'PKWTT (Perjanjian Kerja Waktu Tidak Tertentu)',
+                'name'        => 'PKWTT (Perjanjian Kerja Waktu Tidak Tertentu)',
                 'description' => 'Kontrak kerja untuk pegawai tetap.',
             ],
             [
-                'code' => 'MOU',
-                'name' => 'MoU (Memorandum of Understanding)',
+                'name'        => 'MoU (Memorandum of Understanding)',
                 'description' => 'Nota kesepahaman kerja sama awal antar instansi atau perusahaan.',
             ],
             [
-                'code' => 'VENDOR',
-                'name' => 'Kontrak Kerja Sama Vendor / Mitra',
+                'name'        => 'Kontrak Kerja Sama Vendor / Mitra',
                 'description' => 'Perjanjian pengadaan barang atau jasa dengan pihak ketiga.',
             ],
         ];
 
         foreach ($contractTypes as $type) {
-            // Cari termasuk data yang sudah di-soft delete
+            // Menggunakan 'name' sebagai acuan pencarian karena kolom 'code' tidak ada
             $contractType = ContractType::withTrashed()->firstOrCreate(
-                ['code' => $type['code']],
+                ['name' => $type['name']],
                 [
-                    'name' => $type['name'],
                     'description' => $type['description'],
                 ]
             );
 
-            // Jika datanya ternyata sebelumnya terhapus (soft deleted), pulihkan dan update
             if ($contractType->trashed()) {
                 $contractType->restore();
             }
 
-            // Pastikan data/nama/deskripsi tetap sinkron dengan versi terbaru
             $contractType->update([
-                'name' => $type['name'],
                 'description' => $type['description'],
             ]);
         }

@@ -11,22 +11,33 @@ class Notification extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'title',
-        'message',
+        'document_id',
+        'recipient_user_id',
         'type',
-        'is_read',
+        'sent_at',
         'read_at',
     ];
 
     protected $casts = [
-        'user_id' => 'integer',
-        'is_read' => 'boolean',
-        'read_at' => 'datetime',
+        'document_id'       => 'integer',
+        'recipient_user_id' => 'integer',
+        'sent_at'           => 'datetime',
+        'read_at'           => 'datetime',
     ];
 
-    public function user(): BelongsTo
+    /**
+     * Relasi ke dokumen terkait.
+     */
+    public function document(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Document::class);
+    }
+
+    /**
+     * Relasi ke user penerima notifikasi.
+     */
+    public function recipient(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'recipient_user_id');
     }
 }

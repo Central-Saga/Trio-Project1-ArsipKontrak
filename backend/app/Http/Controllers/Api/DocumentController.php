@@ -9,9 +9,38 @@ use App\Http\Resources\DocumentResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class DocumentController extends Controller
 {
+    /**
+     * Fungsi bantu untuk menentukan status otomatis berdasarkan tanggal atau pilihan manual.
+     */
+    private function determineStatus($startDate, $expiryDate, $currentStatus = null)
+    {
+        // Jika status sudah ditentukan secara manual (expired, terminated, draft, active), hargai pilihan tersebut
+        if ($currentStatus && in_array(strtolower($currentStatus), ['expired', 'terminated', 'draft', 'active'])) {
+            return strtolower($currentStatus);
+        }
+
+        $today = Carbon::today();
+        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : null;
+        $expiry = $expiryDate ? Carbon::parse($expiryDate)->startOfDay() : null;
+
+        // 1. Jika tanggal mulai masih di masa depan -> Draft / Upcoming
+        if ($start && $start->greaterThan($today)) {
+            return 'draft';
+        }
+
+        // 2. Jika tanggal kedaluwarsa sudah terlewati -> Expired
+        if ($expiry && $expiry->lessThan($today)) {
+            return 'expired';
+        }
+
+        // 3. Jika sedang berjalan -> Active
+        return 'active';
+    }
+
     public function statistics()
     {
         $totalArsip = Document::count();
@@ -116,6 +145,11 @@ class DocumentController extends Controller
 
             DB::beginTransaction();
 
+            $calculatedStatus = $this->determineStatus(
+                $validated['document_date'],
+                $validated['expiry_date']
+            );
+
             $document = Document::create([
                 'document_number' => $validated['document_number'],
                 'document_name'   => $validated['title'],
@@ -124,7 +158,7 @@ class DocumentController extends Controller
                 'document_date'   => $validated['document_date'],
                 'effective_date'  => $validated['document_date'],
                 'expiry_date'     => $validated['expiry_date'],
-                'status'          => 'active',
+                'status'          => $calculatedStatus,
                 'description'     => $validated['description'] ?? null,
                 'project_id'      => $validated['project_id'] ?? 1,
                 'created_by'      => $request->user()->id,
@@ -192,7 +226,7 @@ class DocumentController extends Controller
             );
         }
 
-        if ($document->expiry_date && \Carbon\Carbon::parse($document->expiry_date)->isPast() && in_array($document->status, ['active', 'draft'])) {
+        if ($document->expiry_date && Carbon::parse($document->expiry_date)->isPast() && in_array($document->status, ['active', 'draft'])) {
             $document->status = 'expired';
             $document->save();
             $document->refresh();
@@ -205,6 +239,17 @@ class DocumentController extends Controller
     {
         try {
             $document = Document::with('versions')->findOrFail($id);
+            
+            $user = $request->user();
+            if ($user) {
+                \App\Models\ActivityLog::record(
+                    userId: $user->id,
+                    action: 'PREVIEW_PDF',
+                    description: "Pengguna {$user->name} ({$user->role}) membuka pratinjau dokumen: {$document->document_name}",
+                    documentId: $document->id
+                );
+            }
+
             $versionId = $request->query('version_id');
             
             $version = $versionId 
@@ -233,7 +278,6 @@ class DocumentController extends Controller
                 return response()->json(['message' => 'Gagal mendekripsi berkas PDF.'], 500);
             }
 
-            // Sanitasi nama file untuk header Content-Disposition
             $safeFilename = preg_replace('/[\r\n\t[:cntrl:]]+/', '', basename($version->file_name));
 
             return response($decryptedContent, 200, [
@@ -250,7 +294,25 @@ class DocumentController extends Controller
     public function download(Request $request, string $id)
     {
         try {
+            $user = $request->user();
+
+            if ($user && $user->role !== 'admin') {
+                return response()->json([
+                    'message' => 'Akses ditolak. Viewer tidak diizinkan mengunduh dokumen.'
+                ], 403);
+            }
+
             $document = Document::with('versions')->findOrFail($id);
+
+            if ($user) {
+                \App\Models\ActivityLog::record(
+                    userId: $user->id,
+                    action: 'DOWNLOAD_DOCUMENT',
+                    description: "Administrator {$user->name} mengunduh berkas dokumen: {$document->document_name}",
+                    documentId: $document->id
+                );
+            }
+
             $versionId = $request->query('version_id');
             
             $version = $versionId 
@@ -279,7 +341,6 @@ class DocumentController extends Controller
                 return response()->json(['message' => 'Gagal mendekripsi berkas PDF.'], 500);
             }
 
-            // Sanitasi nama file untuk header Content-Disposition
             $safeFilename = preg_replace('/[\r\n\t[:cntrl:]]+/', '', basename($version->file_name));
 
             return response($decryptedContent, 200, [
@@ -324,7 +385,6 @@ class DocumentController extends Controller
         try {
             DB::beginTransaction();
 
-            // Set versi sebelumnya menjadi non-aktif (is_current = false)
             $document->versions()->update(['is_current' => false]);
 
             $version = DocumentVersion::create([
@@ -351,7 +411,6 @@ class DocumentController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
-            // Hapus file fisik jika transaksi database gagal
             if (Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
             }
@@ -379,6 +438,15 @@ class DocumentController extends Controller
             'description'     => 'nullable|string',
             'project_id'      => 'nullable|exists:projects,id',
         ]);
+
+        $startDate = $validated['document_date'] ?? $validated['effective_date'] ?? $document->document_date;
+        $expiryDate = $validated['expiry_date'] ?? $document->expiry_date;
+        
+        // Ambil status manual yang dikirim dari form edit
+        $requestedStatus = $validated['status'] ?? $request->input('status') ?? $document->status;
+        
+        // Evaluasi status dengan memprioritaskan pilihan manual pengguna saat update
+        $validated['status'] = $this->determineStatus($startDate, $expiryDate, $requestedStatus);
 
         $document->update($validated);
 
