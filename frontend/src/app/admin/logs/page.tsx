@@ -13,6 +13,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   User,
+  Users,
 } from "lucide-react";
 import api from "@/lib/api";
 
@@ -184,17 +185,33 @@ export default function ActivityLogsPage() {
               {isSidebarOpen && <span>Ringkasan</span>}
             </button>
             {user?.role === "admin" && (
-              <button
-                type="button"
-                onClick={() => router.push("/admin/logs")}
-                title="Log Aktivitas"
-                className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${
-                  isSidebarOpen ? "" : "justify-center"
-                }`}
-              >
-                <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {isSidebarOpen && <span>Log Aktivitas</span>}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/users")}
+                  title="Manajemen Pengguna"
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${
+                    isSidebarOpen ? "" : "justify-center"
+                  }`}
+                >
+                  <Users className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  {isSidebarOpen && <span>Manajemen Pengguna</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/logs")}
+                  title="Log Aktivitas"
+                  className={`flex w-full items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2.5 text-left font-medium text-emerald-600 ${
+                    isSidebarOpen ? "" : "justify-center"
+                  }`}
+                >
+                  <ShieldAlert
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {isSidebarOpen && <span>Log Aktivitas</span>}
+                </button>
+              </>
             )}
           </nav>
         </div>

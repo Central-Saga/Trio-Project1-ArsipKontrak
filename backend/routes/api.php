@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentVersionController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\UserController; // <-- 1. Tambahkan import UserController
 use App\Models\Project;
 use Illuminate\Support\Facades\Route;
 
@@ -47,6 +48,12 @@ Route::prefix('v1')->group(function () {
 
         // Rute log aktivitas untuk admin
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
+
+        // --- RUTE BARU: Manajemen Pengguna untuk Admin ---
+        Route::get('/admin/users', [UserController::class, 'index']);
+        Route::post('/admin/users', [UserController::class, 'store']);
+        Route::delete('/admin/users/{id}', [UserController::class, 'destroy']);
+        // ------------------------------------------------
 
         // Rute Notifikasi Pengguna
         Route::get('/notifications', [NotificationController::class, 'index']);

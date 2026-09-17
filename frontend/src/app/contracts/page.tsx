@@ -17,6 +17,7 @@ import {
   RotateCcw,
   ShieldAlert,
   Trash2,
+  Users,
 } from "lucide-react";
 import api from "@/lib/api";
 import { DocumentItem } from "@/types/document";
@@ -291,16 +292,31 @@ function ContractsContent() {
               <BarChart3 className="h-5 w-5 shrink-0" aria-hidden="true" />
               {isSidebarOpen && <span>Ringkasan</span>}
             </button>
+
             {user?.role === "admin" && (
-              <button
-                type="button"
-                onClick={() => router.push("/admin/logs")}
-                title="Log Aktivitas"
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
-              >
-                <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden="true" />
-                {isSidebarOpen && <span>Log Aktivitas</span>}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/users")}
+                  title="Manajemen Pengguna"
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+                >
+                  <Users className="h-5 w-5 shrink-0" aria-hidden="true" />
+                  {isSidebarOpen && <span>Manajemen Pengguna</span>}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/logs")}
+                  title="Log Aktivitas"
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 ${isSidebarOpen ? "" : "justify-center"}`}
+                >
+                  <ShieldAlert
+                    className="h-5 w-5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {isSidebarOpen && <span>Log Aktivitas</span>}
+                </button>
+              </>
             )}
           </nav>
         </div>
@@ -569,10 +585,8 @@ function ContractsContent() {
                                 </span>
                               </td>
 
-                              {/* KOLOM AKSI (Hanya ikon untuk Detail, serta Edit & Hapus khusus Admin) */}
                               <td className="p-4 text-right">
                                 <div className="flex items-center justify-end space-x-1.5">
-                                  {/* Tombol Detail (Semua User) */}
                                   <Link
                                     href={`/documents/${document.id}`}
                                     title="Detail Dokumen"
@@ -584,7 +598,6 @@ function ContractsContent() {
                                     />
                                   </Link>
 
-                                  {/* Tombol Edit & Hapus (Khusus Admin) */}
                                   {user?.role === "admin" && (
                                     <>
                                       <Link

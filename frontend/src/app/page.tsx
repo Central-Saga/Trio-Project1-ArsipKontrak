@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
+  Users,
 } from "lucide-react";
 import api from "../lib/api";
 import { DocumentItem } from "../types/document";
@@ -312,28 +313,54 @@ export default function DashboardPage() {
             </button>
 
             {user?.role === "admin" && (
-              <button
-                type="button"
-                onClick={() => router.push("/admin/logs")}
-                title="Log Aktivitas"
-                className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
-                  isSidebarOpen ? "" : "justify-center"
-                }`}
-              >
-                <ShieldAlert
-                  className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
-                  aria-hidden="true"
-                />
-                <span
-                  className={`whitespace-nowrap transition-all duration-300 ${
-                    isSidebarOpen
-                      ? "opacity-100 max-w-[150px]"
-                      : "opacity-0 max-w-0 overflow-hidden"
+              <>
+                {/* Menu Manajemen Pengguna */}
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/users")}
+                  title="Manajemen Pengguna"
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
+                    isSidebarOpen ? "" : "justify-center"
                   }`}
                 >
-                  Log Aktivitas
-                </span>
-              </button>
+                  <Users
+                    className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={`whitespace-nowrap transition-all duration-300 ${
+                      isSidebarOpen
+                        ? "opacity-100 max-w-[150px]"
+                        : "opacity-0 max-w-0 overflow-hidden"
+                    }`}
+                  >
+                    Manajemen Pengguna
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin/logs")}
+                  title="Log Aktivitas"
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-slate-600 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900 ${
+                    isSidebarOpen ? "" : "justify-center"
+                  }`}
+                >
+                  <ShieldAlert
+                    className="h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                    aria-hidden="true"
+                  />
+                  <span
+                    className={`whitespace-nowrap transition-all duration-300 ${
+                      isSidebarOpen
+                        ? "opacity-100 max-w-[150px]"
+                        : "opacity-0 max-w-0 overflow-hidden"
+                    }`}
+                  >
+                    Log Aktivitas
+                  </span>
+                </button>
+              </>
             )}
           </nav>
         </div>
