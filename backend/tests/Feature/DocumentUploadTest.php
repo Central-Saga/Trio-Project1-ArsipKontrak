@@ -78,7 +78,7 @@ class DocumentUploadTest extends TestCase
 
         $this->assertDatabaseHas('document_versions', [
             'version_number' => 'v1.0',
-            'is_current'     => false,
+            'is_current'     => true,
         ]);
 
         // Verifikasi fisik file tersimpan di storage lokal

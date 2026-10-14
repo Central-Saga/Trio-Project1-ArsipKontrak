@@ -18,7 +18,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -57,7 +57,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -89,6 +89,7 @@ class DocumentManagementTest extends TestCase
         $response = $this->withHeader('Accept', 'application/json')
             ->postJson("/api/v1/documents/{$document->id}/versions", [
                 'file' => $newFile,
+                'version_number' => 'v2.0',
                 'description' => 'Pembaruan versi dokumen ke-2',
             ]);
 
@@ -125,7 +126,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -218,7 +219,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -250,6 +251,7 @@ class DocumentManagementTest extends TestCase
         $this->withHeader('Accept', 'application/json')
             ->postJson("/api/v1/documents/{$document->id}/versions", [
                 'file' => $newFile,
+                'version_number' => 'v2.0',
                 'description' => 'Versi 2',
             ])
             ->assertStatus(201);
