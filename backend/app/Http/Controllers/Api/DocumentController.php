@@ -6,8 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Http\Resources\DocumentResource;
+use App\Http\Resources\DocumentVersionResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
@@ -128,95 +130,170 @@ class DocumentController extends Controller
         ]);
     }
 
+
     public function store(Request $request)
     {
+        // Terima alias field yang digunakan frontend dan test lama.
+        $request->merge([
+            'document_name' => $request->input('document_name')
+                ?? $request->input('title')
+                ?? $request->input('name'),
+            'document_date' => $request->input('document_date')
+                ?? $request->input('effective_date')
+                ?? $request->input('start_date'),
+            'expiry_date' => $request->input('expiry_date')
+                ?? $request->input('end_date')
+                ?? $request->input('expired_date'),
+            'partner' => $request->input('partner')
+                ?? $request->input('partner_name')
+                ?? $request->input('counterpart_name'),
+            'notes' => $request->input('notes')
+                ?? $request->input('description'),
+        ]);
+
+        // Validasi di luar try/catch agar Laravel mengembalikan HTTP 422.
+        $validated = $request->validate([
+            'project_id' => 'required|integer|exists:projects,id',
+            'document_number' => 'required|string|unique:documents,document_number',
+            'document_name' => 'required|string|max:255',
+            'document_type' => 'required|in:contract,mou,adendum,addendum,agreement,supporting,other',
+            'partner' => 'required|string|max:255',
+            'document_date' => 'required|date',
+            'effective_date' => 'nullable|date',
+            'expiry_date' => 'required|date',
+            'status' => 'nullable|in:draft,active,expired,terminated',
+            'description' => 'nullable|string',
+            'notes' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf|max:20480',
+        ]);
+
+        Gate::authorize('create', Document::class);
+
+        $file = $request->file('file');
+        $path = null;
+
         try {
-            $validated = $request->validate([
-                'document_number' => 'required|string|unique:documents,document_number',
-                'title'           => 'required|string|max:255',
-                'document_type'   => 'required|in:contract,mou,adendum,agreement,supporting',
-                'partner'         => 'required|string|max:255',
-                'document_date'   => 'required|date',
-                'expiry_date'     => 'required|date',
-                'description'     => 'nullable|string',
-                'project_id'      => 'nullable|integer|exists:projects,id',
-                'file'            => 'required|file|mimes:pdf|max:20480',
-            ]);
+            $document = DB::transaction(function () use (
+                $validated, $request, $file, &$path
+            ) {
+                $effectiveDate = $validated['effective_date']
+                    ?? $validated['document_date'];
 
-            DB::beginTransaction();
+                $status = $this->determineStatus(
+                    $effectiveDate,
+                    $validated['expiry_date'],
+                    $validated['status'] ?? null
+                );
 
-            $calculatedStatus = $this->determineStatus(
-                $validated['document_date'],
-                $validated['expiry_date']
-            );
+                $document = Document::create([
+                    'document_number' => $validated['document_number'],
+                    'document_name' => $validated['document_name'],
+                    'document_type' => $validated['document_type'],
+                    'partner' => $validated['partner'],
+                    'document_date' => $validated['document_date'],
+                    'effective_date' => $effectiveDate,
+                    'expiry_date' => $validated['expiry_date'],
+                    'status' => $status,
+                    'description' => $validated['description'] ?? null,
+                    'project_id' => $validated['project_id'],
+                    'created_by' => $request->user()->id,
+                ]);
 
-            $document = Document::create([
-                'document_number' => $validated['document_number'],
-                'document_name'   => $validated['title'],
-                'document_type'   => $validated['document_type'],
-                'partner'         => $validated['partner'],
-                'document_date'   => $validated['document_date'],
-                'effective_date'  => $validated['document_date'],
-                'expiry_date'     => $validated['expiry_date'],
-                'status'          => $calculatedStatus,
-                'description'     => $validated['description'] ?? null,
-                'project_id'      => $validated['project_id'] ?? 1,
-                'created_by'      => $request->user()->id,
-            ]);
+                $content = file_get_contents($file->getRealPath());
+                if ($content === false) {
+                    throw new \RuntimeException('File tidak dapat dibaca.');
+                }
 
-            $file = $request->file('file');
-            $originalName = $file->getClientOriginalName();
-            $fileContent = file_get_contents($file->getRealPath());
+                $key = config('app.key');
+                if (str_starts_with($key, 'base64:')) {
+                    $key = base64_decode(substr($key, 7), true);
+                }
 
-            $encryptionKey = config('app.key');
-            if (str_starts_with($encryptionKey, 'base64:')) {
-                $encryptionKey = base64_decode(substr($encryptionKey, 7));
+                if ($key === false || $key === '') {
+                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
+                }
+
+                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+                $encrypted = openssl_encrypt(
+                    $content,
+                    'aes-256-cbc',
+                    $key,
+                    0,
+                    $iv
+                );
+
+                if ($encrypted === false) {
+                    throw new \RuntimeException('Enkripsi file gagal.');
+                }
+
+                $payload = base64_encode($iv . $encrypted);
+                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
+
+                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
+                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
+                }
+
+                $hash = hash_file('sha256', $file->getRealPath());
+                if ($hash === false) {
+                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
+                }
+
+                DocumentVersion::create([
+                    'document_id' => $document->id,
+                    'version_number' => 'v1.0',
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'file_hash' => $hash,
+                    'mime_type' => $file->getMimeType(),
+                    'encrypted_at' => now(),
+                    'is_current' => true,
+                    'notes' => $validated['notes'] ?? 'Dokumen awal diunggah.',
+                    'uploaded_by' => $request->user()->id,
+                ]);
+
+                return $document;
+            });
+
+            return response()->json([
+                'message' => 'Dokumen berhasil diunggah dan dienkripsi.',
+                'data' => new DocumentResource(
+                    $document->load(['project', 'creator', 'versions.uploader'])
+                ),
+            ], 201);
+        } catch (\Throwable $e) {
+            // Rollback database ditangani otomatis oleh DB::transaction().
+            // File bukan bagian dari transaksi database, jadi bersihkan secara manual.
+            if ($path && Storage::disk('private_encrypted')->exists($path)) {
+                Storage::disk('private_encrypted')->delete($path);
             }
 
-            $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-            $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-            $payload = base64_encode($iv . $encryptedContent);
+            report($e);
 
-            $path = 'documents/contracts/' . uniqid() . '.enc';
-            Storage::disk('private_encrypted')->put($path, $payload);
+            if (app()->environment('testing')) {
+                throw $e;
+            }
 
-            $fileHash = hash_file('sha256', $file->getRealPath());
-
-            DocumentVersion::create([
-                'document_id'    => $document->id,
-                'version_number' => 'v1.0',
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => 'Dokumen awal diunggah.',
-                'uploaded_by'    => $request->user()->id,
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Dokumen kontrak/MoU berhasil diunggah dan diamankan dengan enkripsi penuh.',
-                'data'    => new DocumentResource($document->load(['project', 'creator', 'versions'])),
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Gagal menyimpan dokumen.',
-                'error'   => $e->getMessage()
             ], 500);
         }
     }
 
+
     public function show(string $id)
     {
-        $document = Document::with(['project', 'creator', 'versions.uploader'])->findOrFail($id);
+        $document = Document::with([
+            'project',
+            'creator',
+            'versions.uploader',
+        ])->findOrFail($id);
+
+        // Pastikan policy dokumen benar-benar diberlakukan.
+        Gate::authorize('view', $document);
 
         $user = request()->user();
+
         if ($user) {
             \App\Models\ActivityLog::record(
                 userId: $user->id,
@@ -226,10 +303,15 @@ class DocumentController extends Controller
             );
         }
 
-        if ($document->expiry_date && Carbon::parse($document->expiry_date)->isPast() && in_array($document->status, ['active', 'draft'])) {
+        if (
+            $document->expiry_date
+            && Carbon::parse($document->expiry_date)->isPast()
+            && in_array($document->status, ['active', 'draft'], true)
+        ) {
             $document->status = 'expired';
             $document->save();
             $document->refresh();
+            $document->load(['project', 'creator', 'versions.uploader']);
         }
 
         return new DocumentResource($document);
@@ -354,70 +436,106 @@ class DocumentController extends Controller
         }
     }
 
+
     public function storeVersion(Request $request, string $id)
     {
         $document = Document::findOrFail($id);
 
-        $validated = $request->validate([
-            'version_number' => 'required|string|max:50',
-            'notes'          => 'nullable|string',
-            'file'           => 'required|file|mimes:pdf|max:20480',
+        $request->merge([
+            'notes' => $request->input('notes')
+                ?? $request->input('description'),
         ]);
 
+        $validated = $request->validate([
+            'version_number' => 'required|string|max:50',
+            'notes' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf|max:20480',
+        ]);
+
+        Gate::authorize('update', $document);
+
         $file = $request->file('file');
-        $originalName = $file->getClientOriginalName();
-        $fileContent = file_get_contents($file->getRealPath());
-
-        $encryptionKey = config('app.key');
-        if (str_starts_with($encryptionKey, 'base64:')) {
-            $encryptionKey = base64_decode(substr($encryptionKey, 7));
-        }
-
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-        $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-        $payload = base64_encode($iv . $encryptedContent);
-
-        $path = 'documents/contracts/' . uniqid() . '.enc';
-        Storage::disk('private_encrypted')->put($path, $payload);
-
-        $fileHash = hash_file('sha256', $file->getRealPath());
+        $path = null;
 
         try {
-            DB::beginTransaction();
+            $version = DB::transaction(function () use (
+                $document, $validated, $file, $request, &$path
+            ) {
+                $content = file_get_contents($file->getRealPath());
+                if ($content === false) {
+                    throw new \RuntimeException('File tidak dapat dibaca.');
+                }
 
-            $document->versions()->update(['is_current' => false]);
+                $key = config('app.key');
+                if (str_starts_with($key, 'base64:')) {
+                    $key = base64_decode(substr($key, 7), true);
+                }
 
-            $version = DocumentVersion::create([
-                'document_id'    => $document->id,
-                'version_number' => $validated['version_number'],
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => $validated['notes'] ?? 'Pembaruan versi dokumen.',
-                'uploaded_by'    => $request->user()->id,
-            ]);
+                if ($key === false || $key === '') {
+                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
+                }
 
-            DB::commit();
+                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+                $encrypted = openssl_encrypt(
+                    $content,
+                    'aes-256-cbc',
+                    $key,
+                    0,
+                    $iv
+                );
+
+                if ($encrypted === false) {
+                    throw new \RuntimeException('Enkripsi file gagal.');
+                }
+
+                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
+                $payload = base64_encode($iv . $encrypted);
+
+                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
+                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
+                }
+
+                // Perubahan versi lama dan pembuatan versi baru berada
+                // dalam satu transaksi database yang sama.
+                $document->versions()->update(['is_current' => false]);
+
+                $hash = hash_file('sha256', $file->getRealPath());
+                if ($hash === false) {
+                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
+                }
+
+                return DocumentVersion::create([
+                    'document_id' => $document->id,
+                    'version_number' => $validated['version_number'],
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'file_hash' => $hash,
+                    'mime_type' => $file->getMimeType(),
+                    'encrypted_at' => now(),
+                    'is_current' => true,
+                    'notes' => $validated['notes'] ?? null,
+                    'uploaded_by' => $request->user()->id,
+                ]);
+            });
 
             return response()->json([
                 'message' => 'Versi baru dokumen berhasil diunggah.',
-                'data'    => new DocumentResource($document->load(['project', 'creator', 'versions']))
+                'data' => new DocumentVersionResource($version->load('uploader')),
             ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            if (Storage::disk('private_encrypted')->exists($path)) {
+        } catch (\Throwable $e) {
+            if ($path && Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
+            }
+
+            report($e);
+
+            if (app()->environment('testing')) {
+                throw $e;
             }
 
             return response()->json([
                 'message' => 'Gagal mengunggah versi baru.',
-                'error'   => $e->getMessage()
             ], 500);
         }
     }
@@ -456,38 +574,31 @@ class DocumentController extends Controller
         ]);
     }
 
+
     public function destroy(Request $request, string $id)
     {
         $document = Document::with('versions')->findOrFail($id);
 
-        if ($document->created_by !== $request->user()->id && $request->user()->role !== 'admin') {
-            return response()->json([
-                'message' => 'Unauthorized action.'
-            ], 403);
-        }
+        Gate::authorize('delete', $document);
 
         try {
-            DB::beginTransaction();
+            DB::transaction(function () use ($document) {
+                // Soft delete tidak menghapus file fisik atau riwayat versi.
+                $document->delete();
+            });
 
-            foreach ($document->versions as $version) {
-                if (Storage::disk('private_encrypted')->exists($version->file_path)) {
-                    Storage::disk('private_encrypted')->delete($version->file_path);
-                }
+            return response()->json([
+                'message' => 'Dokumen dipindahkan ke tempat sampah; file fisik dan riwayat versinya dipertahankan.',
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+
+            if (app()->environment('testing')) {
+                throw $e;
             }
 
-            $document->delete();
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Dokumen dan seluruh riwayat versinya berhasil dihapus.'
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
             return response()->json([
                 'message' => 'Gagal menghapus dokumen.',
-                'error'   => $e->getMessage()
             ], 500);
         }
     }

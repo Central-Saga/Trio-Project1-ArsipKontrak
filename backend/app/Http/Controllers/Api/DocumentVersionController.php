@@ -9,6 +9,7 @@ use App\Http\Resources\DocumentVersionResource;
 use App\Http\Requests\StoreDocumentVersionRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentVersionController extends Controller
@@ -27,63 +28,95 @@ class DocumentVersionController extends Controller
     /**
      * Unggah versi baru / adendum untuk dokumen yang sudah ada.
      */
+
     public function store(StoreDocumentVersionRequest $request, string $documentId)
     {
         $document = Document::findOrFail($documentId);
         $validated = $request->validated();
 
+        Gate::authorize('update', $document);
+
         $file = $request->file('file');
-        $originalName = $file->getClientOriginalName();
-        $fileContent = file_get_contents($file->getRealPath());
-
-        $encryptionKey = config('app.key');
-        if (str_starts_with($encryptionKey, 'base64:')) {
-            $encryptionKey = base64_decode(substr($encryptionKey, 7));
-        }
-
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-        $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-        $payload = base64_encode($iv . $encryptedContent);
-
-        $path = 'documents/contracts/' . uniqid() . '.enc';
-        Storage::disk('private_encrypted')->put($path, $payload);
-
-        $fileHash = hash_file('sha256', $file->getRealPath());
+        $path = null;
 
         try {
-            DB::beginTransaction();
+            $version = DB::transaction(function () use (
+                $document, $validated, $file, $request, &$path
+            ) {
+                $content = file_get_contents($file->getRealPath());
+                if ($content === false) {
+                    throw new \RuntimeException('File tidak dapat dibaca.');
+                }
 
-            $document->versions()->update(['is_current' => false]);
+                $key = config('app.key');
+                if (str_starts_with($key, 'base64:')) {
+                    $key = base64_decode(substr($key, 7), true);
+                }
 
-            $version = DocumentVersion::create([
-                'document_id'    => $document->id,
-                'version_number' => $validated['version_number'] ?? 'v' . ($document->versions()->count() + 1) . '.0',
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => $validated['notes'] ?? null,
-                'uploaded_by'    => $request->user()->id,
-            ]);
+                if ($key === false || $key === '') {
+                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
+                }
 
-            DB::commit();
+                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
+                $encrypted = openssl_encrypt(
+                    $content,
+                    'aes-256-cbc',
+                    $key,
+                    0,
+                    $iv
+                );
+
+                if ($encrypted === false) {
+                    throw new \RuntimeException('Enkripsi file gagal.');
+                }
+
+                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
+                $payload = base64_encode($iv . $encrypted);
+
+                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
+                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
+                }
+
+                $document->versions()->update(['is_current' => false]);
+
+                $hash = hash_file('sha256', $file->getRealPath());
+                if ($hash === false) {
+                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
+                }
+
+                return DocumentVersion::create([
+                    'document_id' => $document->id,
+                    'version_number' => $validated['version_number']
+                        ?? 'v' . ($document->versions()->count() + 1) . '.0',
+                    'file_path' => $path,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_size' => $file->getSize(),
+                    'file_hash' => $hash,
+                    'mime_type' => $file->getMimeType(),
+                    'encrypted_at' => now(),
+                    'is_current' => true,
+                    'notes' => $validated['notes'] ?? null,
+                    'uploaded_by' => $request->user()->id,
+                ]);
+            });
 
             return response()->json([
                 'message' => 'Versi baru berhasil diunggah dengan enkripsi penuh.',
-                'data'    => new DocumentVersionResource($version->load('uploader')),
+                'data' => new DocumentVersionResource($version->load('uploader')),
             ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            if (Storage::disk('private_encrypted')->exists($path)) {
+        } catch (\Throwable $e) {
+            if ($path && Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
             }
+
+            report($e);
+
+            if (app()->environment('testing')) {
+                throw $e;
+            }
+
             return response()->json([
                 'message' => 'Gagal mengunggah versi baru.',
-                'error'   => $e->getMessage()
             ], 500);
         }
     }
