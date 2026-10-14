@@ -1,1 +1,30 @@
-backend/.env.local
+# Local environment files and secrets
+/.env
+/.env.*
+!/.env.example
+
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+/backend/.env.local.bak
+
+/frontend/.env
+/frontend/.env.*
+!/frontend/.env.example
+
+# Dependencies
+**/node_modules/
+**/vendor/
+
+# Build outputs and test artifacts
+**/.next/
+**/build/
+**/dist/
+**/out/
+**/coverage/
+
+# Logs and operating-system files
+**/*.log
+**/.DS_Store
+**/Thumbs.db
+**/*Zone.Identifier

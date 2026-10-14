@@ -1,40 +1,84 @@
-version: "3.8"
-
 services:
-    app:
-        build:
-            context: .
-            dockerfile: Dockerfile
-        container_name: saga_laravel_app
-        restart: unless-stopped
-        working_dir: /var/www
-        volumes:
-            - .:/var/www
-        environment:
-            - DB_HOST=db
-            - DB_PORT=5432
-            - DB_DATABASE=sistem_arsip
-            - DB_USERNAME=saga
-            - DB_PASSWORD=secret123
-        depends_on:
-            - db
-        ports:
-            - "8000:8000"
-        command: php artisan serve --host=0.0.0.0 --port=8000
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sistem_arsip}
+      POSTGRES_USER: ${POSTGRES_USER:-saga}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
-    db:
-        image: postgres:16-alpine
-        container_name: saga_postgres_db
-        restart: unless-stopped
-        environment:
-            POSTGRES_DB: sistem_arsip
-            POSTGRES_USER: saga
-            POSTGRES_PASSWORD: secret123
-        ports:
-            - "5432:5432"
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB:-sistem_arsip}
+      DB_USERNAME: ${POSTGRES_USER:-saga}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+    volumes:
+      - laravel_runtime:/runtime
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:80"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1/up >/dev/null || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8001/api/v1}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8001/api/v1}
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q --spider http://127.0.0.1:3000/ || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
-    postgres_data:
-        driver: local
+  postgres_data:
+    driver: local
+  laravel_runtime:
+    driver: local
