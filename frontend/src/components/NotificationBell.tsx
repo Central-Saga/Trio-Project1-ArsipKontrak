@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import axios from "@/lib/api"; // Sesuaikan path axios instance kamu
+import { useCallback, useEffect, useRef, useState } from "react";
+import api from "@/lib/api";
 
 interface Notification {
   id: number;
@@ -17,29 +17,52 @@ interface Notification {
 
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState<number>(0);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Ambil data notifikasi dari API Laravel (Diubah tanpa /v1 karena sudah di base URL)
-  const fetchNotifications = async () => {
-    try {
-      const response = await axios.get("/notifications");
-      setNotifications(response.data.notifications);
-      setUnreadCount(response.data.unread_count);
-    } catch (error) {
-      console.error("Gagal memuat notifikasi:", error);
+  const fetchNotifications = useCallback(async (showLoader = false) => {
+    if (showLoader) {
+      setLoading(true);
     }
-  };
 
-  useEffect(() => {
-    fetchNotifications();
-    // Polling opsional setiap 1 menit untuk cek notifikasi baru
-    const interval = setInterval(fetchNotifications, 60000);
-    return () => clearInterval(interval);
+    try {
+      const response = await api.get("/notifications");
+      const payload = response.data;
+      const items = payload?.notifications;
+
+      if (!Array.isArray(items)) {
+        throw new Error("Format respons notifikasi dari server tidak valid.");
+      }
+
+      setNotifications(items);
+      setUnreadCount(Number(payload?.unread_count) || 0);
+      setError(null);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Gagal memuat notifikasi.",
+      );
+    } finally {
+      if (showLoader) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  // Tutup dropdown jika klik di luar area
+  useEffect(() => {
+    void fetchNotifications(true);
+
+    const interval = window.setInterval(() => {
+      void fetchNotifications(false);
+    }, 60000);
+
+    return () => window.clearInterval(interval);
+  }, [fetchNotifications]);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -49,31 +72,39 @@ export default function NotificationBell() {
         setIsOpen(false);
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Tandai satu notifikasi sudah dibaca
   const markAsRead = async (id: number) => {
+    setError(null);
+
     try {
-      await axios.post(`/notifications/${id}/read`);
-      fetchNotifications();
-    } catch (error) {
-      console.error("Gagal menandai dibaca:", error);
+      await api.post(`/notifications/${id}/read`);
+      await fetchNotifications(false);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.message ||
+          "Gagal menandai notifikasi sebagai dibaca.",
+      );
     }
   };
 
-  // Tandai semua dibaca
   const markAllAsRead = async () => {
+    setError(null);
+
     try {
-      await axios.post("/notifications/read-all");
-      fetchNotifications();
-    } catch (error) {
-      console.error("Gagal menandai semua dibaca:", error);
+      await api.post("/notifications/read-all");
+      await fetchNotifications(false);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.message ||
+          "Gagal menandai semua notifikasi sebagai dibaca.",
+      );
     }
   };
 
-  // Format label tipe notifikasi
   const getBadgeStyle = (type: string) => {
     switch (type) {
       case "expired":
@@ -102,17 +133,19 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Tombol Lonceng */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors focus:outline-none"
+        className="relative p-2 text-gray-600 transition-colors hover:text-gray-900 focus:outline-none"
         aria-label="Notifikasi"
+        aria-expanded={isOpen}
       >
         <svg
-          className="w-6 h-6"
+          className="h-6 w-6"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -121,32 +154,68 @@ export default function NotificationBell() {
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
+
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+          <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
             {unreadCount}
           </span>
         )}
       </button>
 
-      {/* Menu Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-white shadow-xl ring-1 ring-black/5 z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <h3 className="font-semibold text-gray-800 text-sm">
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl bg-white shadow-xl ring-1 ring-black/5 sm:w-96">
+          <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+            <h3 className="text-sm font-semibold text-gray-800">
               Notifikasi Dokumen
             </h3>
+
             {unreadCount > 0 && (
               <button
+                type="button"
                 onClick={markAllAsRead}
-                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                className="text-xs font-medium text-emerald-600 hover:text-emerald-700"
               >
                 Tandai semua dibaca
               </button>
             )}
           </div>
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
-            {notifications.length === 0 ? (
+          {error && notifications.length > 0 && (
+            <div
+              role="alert"
+              className="border-b border-rose-100 bg-rose-50 px-4 py-3 text-xs text-rose-700"
+            >
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => void fetchNotifications(true)}
+                className="mt-1 font-semibold underline"
+              >
+                Coba lagi
+              </button>
+            </div>
+          )}
+
+          <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
+            {loading ? (
+              <div
+                role="status"
+                className="py-8 text-center text-sm text-gray-500"
+              >
+                Memuat notifikasi...
+              </div>
+            ) : error && notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-rose-600">
+                <p role="alert">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchNotifications(true)}
+                  className="mt-3 rounded-lg border border-rose-200 px-3 py-2 font-semibold hover:bg-rose-50"
+                >
+                  Coba lagi
+                </button>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="py-8 text-center text-sm text-gray-500">
                 Tidak ada notifikasi saat ini.
               </div>
@@ -154,14 +223,18 @@ export default function NotificationBell() {
               notifications.map((notif) => (
                 <div
                   key={notif.id}
-                  onClick={() => !notif.read_at && markAsRead(notif.id)}
-                  className={`p-4 transition-colors cursor-pointer hover:bg-gray-50 ${
+                  onClick={() => {
+                    if (!notif.read_at) {
+                      void markAsRead(notif.id);
+                    }
+                  }}
+                  className={`cursor-pointer p-4 transition-colors hover:bg-gray-50 ${
                     !notif.read_at ? "bg-emerald-50/40" : "bg-white"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${getBadgeStyle(notif.type)}`}
+                      className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${getBadgeStyle(notif.type)}`}
                     >
                       {getTypeText(notif.type)}
                     </span>
@@ -172,11 +245,12 @@ export default function NotificationBell() {
                       })}
                     </span>
                   </div>
-                  <p className="mt-1.5 text-xs font-medium text-gray-800 line-clamp-1">
+
+                  <p className="mt-1.5 line-clamp-1 text-xs font-medium text-gray-800">
                     {notif.document?.document_name || "Dokumen Terkait"}
                   </p>
-                  <p className="text-[11px] text-gray-500 font-mono">
-                    {notif.document?.document_number}
+                  <p className="font-mono text-[11px] text-gray-500">
+                    {notif.document?.document_number || "-"}
                   </p>
                 </div>
               ))

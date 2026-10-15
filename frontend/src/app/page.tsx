@@ -42,7 +42,7 @@ export default function DashboardPage() {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isSecureMode, setIsSecureMode] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteSuccessPopup, setDeleteSuccessPopup] = useState(false);
@@ -70,9 +70,10 @@ export default function DashboardPage() {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await api.get("/documents");
       const rawData = response.data;
-      const items = Array.isArray(rawData)
+      const items: unknown = Array.isArray(rawData)
         ? rawData
         : Array.isArray(rawData?.data)
           ? rawData.data
@@ -80,11 +81,20 @@ export default function DashboardPage() {
             ? rawData.data.data
             : Array.isArray(rawData?.documents)
               ? rawData.documents
-              : [];
-      setDocuments(items);
+              : null;
+
+      if (!Array.isArray(items)) {
+        throw new Error("Format data dokumen dari server tidak valid.");
+      }
+
+      setDocuments(items as DocumentItem[]);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat daftar dokumen.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Gagal memuat daftar dokumen.",
+      );
     } finally {
       setLoading(false);
     }
@@ -582,13 +592,31 @@ export default function DashboardPage() {
                           Memuat daftar dokumen...
                         </td>
                       </tr>
+                    ) : error ? (
+                      <tr>
+                        <td
+                          colSpan={5}
+                          className="px-6 py-8 text-center text-rose-600"
+                        >
+                          <p role="alert">{error}</p>
+                          <button
+                            type="button"
+                            onClick={() => void fetchDocuments()}
+                            className="mt-3 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold hover:bg-rose-50"
+                          >
+                            Coba lagi
+                          </button>
+                        </td>
+                      </tr>
                     ) : filteredDocuments.length === 0 ? (
                       <tr>
                         <td
                           colSpan={5}
                           className="px-6 py-8 text-center text-slate-500"
                         >
-                          Tidak ada dokumen ditemukan.
+                          {documents.length === 0
+                            ? "Belum ada dokumen yang tersedia."
+                            : "Tidak ada dokumen yang cocok dengan pencarian."}
                         </td>
                       </tr>
                     ) : (

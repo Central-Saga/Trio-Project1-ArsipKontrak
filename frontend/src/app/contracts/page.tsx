@@ -533,7 +533,14 @@ function ContractsContent() {
                 </div>
               ) : error ? (
                 <div className="p-10 text-center text-sm text-rose-600">
-                  {error}
+                  <p>{error}</p>
+                  <button
+                    type="button"
+                    onClick={() => void fetchDocuments()}
+                    className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                  >
+                    Coba lagi
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">

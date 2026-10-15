@@ -195,6 +195,13 @@ export default function DocumentDetailPage() {
           {error || "Dokumen tidak ditemukan."}
         </div>
         <button
+          type="button"
+          onClick={() => void fetchDetail()}
+          className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+        >
+          Coba lagi
+        </button>
+        <button
           onClick={() => router.push("/")}
           className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-500 transition"
         >

@@ -8,26 +8,47 @@ const api = axios.create({
   },
 });
 
-// Sisipkan Bearer Token secara otomatis di setiap request
+const AUTH_STORAGE_KEYS = [
+  "token",
+  "auth_token",
+  "user",
+  "user_data",
+] as const;
+
+// Gunakan token yang tersedia untuk setiap request API.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
+    const token =
+      window.localStorage.getItem("token") ||
+      window.localStorage.getItem("auth_token");
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
   }
+
   return config;
 });
 
-// Tangani respon jika session habis (401 Unauthorized)
+// Sesi kedaluwarsa atau tidak valid: bersihkan semua variasi key
+// autentikasi yang digunakan aplikasi, lalu arahkan ke halaman login.
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (typeof window !== "undefined" && error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+  (error: unknown) => {
+    const status = axios.isAxiosError(error)
+      ? error.response?.status
+      : undefined;
+
+    if (typeof window !== "undefined" && status === 401) {
+      AUTH_STORAGE_KEYS.forEach((key) => {
+        window.localStorage.removeItem(key);
+      });
+
+      if (window.location.pathname !== "/login") {
+        window.location.assign("/login");
+      }
     }
+
     return Promise.reject(error);
   },
 );

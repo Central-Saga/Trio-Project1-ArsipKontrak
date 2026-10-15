@@ -45,8 +45,16 @@ export default function UploadDocumentModal({
 
   useEffect(() => {
     if (isOpen) {
+      const now = new Date();
+      const romanMonths = [
+        "I", "II", "III", "IV", "V", "VI",
+        "VII", "VIII", "IX", "X", "XI", "XII",
+      ];
       const randomCode = Math.floor(1000 + Math.random() * 9000);
-      setDocumentNumber(`CTR/2026/IX/${randomCode}`);
+
+      setDocumentNumber(
+        `CTR/${now.getFullYear()}/${romanMonths[now.getMonth()]}/${randomCode}`,
+      );
     } else {
       setProjectId(1);
       setTitle("");
