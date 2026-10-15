@@ -167,8 +167,16 @@ export default function AdminUsersPage() {
           </div>
 
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-              {error}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => void fetchUsers()}
+                disabled={loading}
+                className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+              >
+                Coba lagi
+              </button>
             </div>
           )}
 
@@ -185,7 +193,16 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
-                {users.map((u) => (
+                {users.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-10 text-center text-sm text-slate-500"
+                    >
+                      Belum ada pengguna untuk ditampilkan.
+                    </td>
+                  </tr>
+                ) : users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition">
                     <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
                       <User className="h-4 w-4 text-slate-400" /> {u.name}

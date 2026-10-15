@@ -42,6 +42,7 @@ export default function ActivityLogsPage() {
   const router = useRouter();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -79,13 +80,23 @@ export default function ActivityLogsPage() {
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const response = await api.get("/admin/activity-logs");
-      const json = response.data;
-      if (json.success) {
-        setLogs(json.data.data);
+      const payload = response.data;
+      const items = payload?.data?.data;
+
+      if (!payload?.success || !Array.isArray(items)) {
+        throw new Error("Format data log aktivitas dari server tidak valid.");
       }
-    } catch (error) {
-      console.error("Gagal memuat log aktivitas:", error);
+
+      setLogs(items);
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Gagal memuat log aktivitas.",
+      );
     } finally {
       setLoading(false);
     }
@@ -355,6 +366,22 @@ export default function ActivityLogsPage() {
                         className="px-6 py-8 text-center text-slate-500"
                       >
                         Memuat data log aktivitas...
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-6 py-8 text-center text-rose-600"
+                      >
+                        <p role="alert">{error}</p>
+                        <button
+                          type="button"
+                          onClick={() => void fetchLogs()}
+                          className="mt-3 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold hover:bg-rose-50"
+                        >
+                          Coba lagi
+                        </button>
                       </td>
                     </tr>
                   ) : logs.length === 0 ? (

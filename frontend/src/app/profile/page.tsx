@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, KeyRound, LogOut, Mail, ShieldCheck, UserCircle } from "lucide-react";
 import api from "@/lib/api";
@@ -17,24 +17,47 @@ export default function ProfilePage() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user_data") || localStorage.getItem("user");
-    const token = localStorage.getItem("token") || localStorage.getItem("auth_token");
+  const loadProfile = useCallback(async () => {
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("auth_token");
 
-    if (!storedUser || !token) {
+    if (!token) {
+      setError("Sesi login tidak ditemukan. Silakan masuk kembali.");
+      setLoading(false);
       router.replace("/login");
       return;
     }
 
+    setLoading(true);
+    setError(null);
+
     try {
-      setUser(JSON.parse(storedUser));
-    } catch {
-      router.replace("/login");
+      const response = await api.get("/me");
+      const profile = response.data?.data ?? response.data;
+
+      if (!profile || typeof profile !== "object" || !profile.id) {
+        throw new Error("Format data profil dari server tidak valid.");
+      }
+
+      setUser(profile as CurrentUser);
+      localStorage.setItem("user", JSON.stringify(profile));
+      localStorage.setItem("user_data", JSON.stringify(profile));
+    } catch (requestError: any) {
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Gagal memuat profil dari server.",
+      );
     } finally {
       setLoading(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -51,10 +74,39 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading || !user) {
+  if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500">
-        Memuat profil...
+      <main
+        role="status"
+        className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500"
+      >
+        Memuat profil dari server...
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+        <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <p role="alert" className="text-sm text-rose-600">
+            {error || "Data profil belum tersedia."}
+          </p>
+          <button
+            type="button"
+            onClick={() => void loadProfile()}
+            className="mt-4 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            Coba lagi
+          </button>
+          <button
+            type="button"
+            onClick={() => router.replace("/login")}
+            className="ml-2 mt-4 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Ke halaman login
+          </button>
+        </section>
       </main>
     );
   }
