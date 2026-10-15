@@ -13,21 +13,21 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     
     // Auth Public
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
     // Auth Protected (Semua endpoint dokumen, versi, project, notifikasi, dan auth user diproteksi Sanctum)
     Route::middleware('auth:sanctum')->group(function () {
         // Auth User
-        Route::get('/me', [AuthController::class, 'me']);
-        Route::get('/user', [AuthController::class, 'me']);
-        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/me', [AuthController::class, 'me'])->middleware('throttle:120,1');
+        Route::get('/user', [AuthController::class, 'me'])->middleware('throttle:120,1');
+        Route::post('/logout', [AuthController::class, 'logout'])->middleware('throttle:120,1');
 
         // Endpoint Dashboard Statistics
-        Route::get('/dashboard/statistics', [DocumentController::class, 'statistics']);
+        Route::get('/dashboard/statistics', [DocumentController::class, 'statistics'])->middleware('throttle:120,1');
 
         // Endpoint Dokumen & Arsip
-        Route::get('documents/trash', [DocumentController::class, 'trashed']);
-        Route::post('documents/{id}/restore', [DocumentController::class, 'restore']);
+        Route::get('documents/trash', [DocumentController::class, 'trashed'])->middleware('throttle:120,1');
+        Route::post('documents/{id}/restore', [DocumentController::class, 'restore'])->middleware('throttle:30,1');
 
         // Rute khusus preview & download dokumen dengan proteksi Rate Limiter (Throttle: 30 req/min)
         Route::middleware('throttle:30,1')->group(function () {
@@ -35,29 +35,29 @@ Route::prefix('v1')->group(function () {
             Route::get('documents/{id}/download', [DocumentController::class, 'download']);
         });
 
-        Route::apiResource('documents', DocumentController::class);
+        Route::apiResource('documents', DocumentController::class)->middleware('throttle:60,1');
         
-        Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index']);
+        Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])->middleware('throttle:120,1');
         // Arahkan post versions ke DocumentController karena method storeVersion ada di sana
-        Route::post('documents/{document}/versions', [DocumentController::class, 'storeVersion']);
+        Route::post('documents/{document}/versions', [DocumentController::class, 'storeVersion'])->middleware('throttle:30,1');
 
         // List Project untuk Dropdown Upload
         Route::get('/projects', function () {
             return response()->json(Project::select('id', 'project_name', 'project_code')->get());
-        });
+        })->middleware('throttle:120,1');
 
         // Rute log aktivitas untuk admin
-        Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
+        Route::get('/admin/activity-logs', [ActivityLogController::class, 'index'])->middleware('throttle:120,1');
 
         // --- RUTE BARU: Manajemen Pengguna untuk Admin ---
-        Route::get('/admin/users', [UserController::class, 'index']);
-        Route::post('/admin/users', [UserController::class, 'store']);
-        Route::delete('/admin/users/{id}', [UserController::class, 'destroy']);
+        Route::get('/admin/users', [UserController::class, 'index'])->middleware('throttle:120,1');
+        Route::post('/admin/users', [UserController::class, 'store'])->middleware('throttle:30,1');
+        Route::delete('/admin/users/{id}', [UserController::class, 'destroy'])->middleware('throttle:30,1');
         // ------------------------------------------------
 
         // Rute Notifikasi Pengguna
-        Route::get('/notifications', [NotificationController::class, 'index']);
-        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::get('/notifications', [NotificationController::class, 'index'])->middleware('throttle:120,1');
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->middleware('throttle:30,1');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->middleware('throttle:30,1');
     });
 });
