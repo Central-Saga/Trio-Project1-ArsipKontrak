@@ -115,6 +115,69 @@ class DocumentUploadTest extends TestCase
             ->assertJsonValidationErrors(['file']);
     }
 
+    public function test_viewer_cannot_update_document_metadata(): void
+    {
+        $viewer = User::factory()->create([
+            'email' => 'viewer-update@arsipkontrak.local',
+            'role' => 'viewer',
+        ]);
+
+        $document = Document::create([
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/UPDATE/RBAC/001',
+            'document_name'   => 'Dokumen Asli',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Mitra Uji',
+            'document_date'   => '2026-09-08',
+            'effective_date'  => '2026-09-10',
+            'expiry_date'     => '2027-09-10',
+            'status'          => 'active',
+            'description'     => 'Dokumen untuk pengujian RBAC',
+            'created_by'      => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($viewer)
+            ->patchJson("/api/v1/documents/{$document->id}", [
+                'document_name' => 'Nama Diubah Viewer',
+            ]);
+
+        $response->assertForbidden();
+
+        $this->assertDatabaseHas('documents', [
+            'id'            => $document->id,
+            'document_name' => 'Dokumen Asli',
+        ]);
+    }
+
+    public function test_admin_can_update_document_metadata(): void
+    {
+        $document = Document::create([
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/UPDATE/RBAC/002',
+            'document_name'   => 'Dokumen Admin Asli',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Mitra Uji',
+            'document_date'   => '2026-09-08',
+            'effective_date'  => '2026-09-10',
+            'expiry_date'     => '2027-09-10',
+            'status'          => 'active',
+            'description'     => 'Dokumen untuk pengujian admin',
+            'created_by'      => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->patchJson("/api/v1/documents/{$document->id}", [
+                'document_name' => 'Nama Diperbarui Admin',
+            ]);
+
+        $response->assertOk();
+
+        $this->assertDatabaseHas('documents', [
+            'id'            => $document->id,
+            'document_name' => 'Nama Diperbarui Admin',
+        ]);
+    }
+
     public function test_non_admin_cannot_view_confidential_document(): void
     {
         Storage::fake('local');
