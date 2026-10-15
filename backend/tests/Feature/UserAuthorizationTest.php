@@ -58,6 +58,24 @@ class UserAuthorizationTest extends TestCase
         ]);
     }
 
+    public function test_viewer_cannot_create_an_admin_user(): void
+    {
+        $viewer = User::factory()->create(['role' => 'viewer']);
+
+        $this->actingAs($viewer, 'sanctum')
+            ->postJson('/api/v1/admin/users', [
+                'name' => 'Admin Tidak Sah',
+                'email' => 'attempted.admin@example.test',
+                'password' => 'password-rahasia',
+                'role' => 'admin',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'attempted.admin@example.test',
+        ]);
+    }
+
     public function test_admin_can_create_user_without_returning_password(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -99,6 +117,20 @@ class UserAuthorizationTest extends TestCase
                 'password',
                 'role',
             ]);
+    }
+
+    public function test_viewer_cannot_delete_another_user(): void
+    {
+        $viewer = User::factory()->create(['role' => 'viewer']);
+        $target = User::factory()->create(['role' => 'viewer']);
+
+        $this->actingAs($viewer, 'sanctum')
+            ->deleteJson("/api/v1/admin/users/{$target->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $target->id,
+        ]);
     }
 
     public function test_admin_cannot_delete_the_account_in_use(): void
