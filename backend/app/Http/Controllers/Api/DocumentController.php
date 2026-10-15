@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreDocumentRequest;
+use App\Http\Requests\UpdateDocumentRequest;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Http\Resources\DocumentResource;
@@ -78,7 +80,17 @@ class DocumentController extends Controller
 
     public function index(Request $request)
     {
+        Gate::authorize('viewAny', Document::class);
+
         $query = Document::with(['project', 'creator', 'activeVersion']);
+
+        if ($request->user()->role !== 'admin') {
+            $query
+                ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%nda%'])
+                ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%rahasia%'])
+                ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%nda%'])
+                ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%rahasia%']);
+        }
 
         if ($request->has('search') && !empty($request->search)) {
             $search = $request->search;
@@ -98,14 +110,15 @@ class DocumentController extends Controller
 
         $documents = $query->latest()->paginate(15);
 
-        return DocumentResource::collection($documents);
+        return DocumentResource::collection($documents)->additional([
+            'success' => true,
+            'message' => 'Daftar dokumen berhasil diambil.',
+        ]);
     }
 
     public function trashed(Request $request)
     {
-        if ($request->user()->role !== 'admin') {
-            abort(403, 'Hanya administrator yang dapat melihat tempat sampah.');
-        }
+        Gate::authorize('viewTrash', Document::class);
 
         $documents = Document::onlyTrashed()
             ->with(['project', 'creator', 'activeVersion'])
@@ -117,55 +130,24 @@ class DocumentController extends Controller
 
     public function restore(Request $request, string $id)
     {
-        if ($request->user()->role !== 'admin') {
-            abort(403, 'Hanya administrator yang dapat memulihkan dokumen.');
-        }
-
         $document = Document::onlyTrashed()->findOrFail($id);
+        Gate::authorize('restore', $document);
+
         $document->restore();
 
         return response()->json([
+            'success' => true,
             'message' => 'Dokumen berhasil dikembalikan.',
-            'data' => new DocumentResource($document->load(['project', 'creator', 'versions'])),
+            'data' => new DocumentResource(
+                $document->load(['project', 'creator', 'versions'])
+            ),
         ]);
     }
 
 
-    public function store(Request $request)
+    public function store(StoreDocumentRequest $request)
     {
-        // Terima alias field yang digunakan frontend dan test lama.
-        $request->merge([
-            'document_name' => $request->input('document_name')
-                ?? $request->input('title')
-                ?? $request->input('name'),
-            'document_date' => $request->input('document_date')
-                ?? $request->input('effective_date')
-                ?? $request->input('start_date'),
-            'expiry_date' => $request->input('expiry_date')
-                ?? $request->input('end_date')
-                ?? $request->input('expired_date'),
-            'partner' => $request->input('partner')
-                ?? $request->input('partner_name')
-                ?? $request->input('counterpart_name'),
-            'notes' => $request->input('notes')
-                ?? $request->input('description'),
-        ]);
-
-        // Validasi di luar try/catch agar Laravel mengembalikan HTTP 422.
-        $validated = $request->validate([
-            'project_id' => 'required|integer|exists:projects,id',
-            'document_number' => 'required|string|unique:documents,document_number',
-            'document_name' => 'required|string|max:255',
-            'document_type' => 'required|in:contract,mou,adendum,addendum,agreement,supporting,other',
-            'partner' => 'required|string|max:255',
-            'document_date' => 'required|date',
-            'effective_date' => 'nullable|date',
-            'expiry_date' => 'required|date',
-            'status' => 'nullable|in:draft,active,expired,terminated',
-            'description' => 'nullable|string',
-            'notes' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf|max:20480',
-        ]);
+        $validated = $request->validated();
 
         Gate::authorize('create', Document::class);
 
@@ -256,6 +238,7 @@ class DocumentController extends Controller
             });
 
             return response()->json([
+                'success' => true,
                 'message' => 'Dokumen berhasil diunggah dan dienkripsi.',
                 'data' => new DocumentResource(
                     $document->load(['project', 'creator', 'versions.uploader'])
@@ -319,8 +302,10 @@ class DocumentController extends Controller
 
     public function preview(Request $request, string $id)
     {
+        $document = Document::with('versions')->findOrFail($id);
+        Gate::authorize('view', $document);
+
         try {
-            $document = Document::with('versions')->findOrFail($id);
             
             $user = $request->user();
             if ($user) {
@@ -375,16 +360,11 @@ class DocumentController extends Controller
 
     public function download(Request $request, string $id)
     {
+        $document = Document::with('versions')->findOrFail($id);
+        Gate::authorize('download', $document);
+
         try {
             $user = $request->user();
-
-            if ($user && $user->role !== 'admin') {
-                return response()->json([
-                    'message' => 'Akses ditolak. Viewer tidak diizinkan mengunduh dokumen.'
-                ], 403);
-            }
-
-            $document = Document::with('versions')->findOrFail($id);
 
             if ($user) {
                 \App\Models\ActivityLog::record(
@@ -437,125 +417,12 @@ class DocumentController extends Controller
     }
 
 
-    public function storeVersion(Request $request, string $id)
+    public function update(UpdateDocumentRequest $request, string $id)
     {
         $document = Document::findOrFail($id);
-
-        $request->merge([
-            'notes' => $request->input('notes')
-                ?? $request->input('description'),
-        ]);
-
-        $validated = $request->validate([
-            'version_number' => 'required|string|max:50',
-            'notes' => 'nullable|string',
-            'file' => 'required|file|mimes:pdf|max:20480',
-        ]);
-
         Gate::authorize('update', $document);
 
-        $file = $request->file('file');
-        $path = null;
-
-        try {
-            $version = DB::transaction(function () use (
-                $document, $validated, $file, $request, &$path
-            ) {
-                $content = file_get_contents($file->getRealPath());
-                if ($content === false) {
-                    throw new \RuntimeException('File tidak dapat dibaca.');
-                }
-
-                $key = config('app.key');
-                if (str_starts_with($key, 'base64:')) {
-                    $key = base64_decode(substr($key, 7), true);
-                }
-
-                if ($key === false || $key === '') {
-                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
-                }
-
-                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-                $encrypted = openssl_encrypt(
-                    $content,
-                    'aes-256-cbc',
-                    $key,
-                    0,
-                    $iv
-                );
-
-                if ($encrypted === false) {
-                    throw new \RuntimeException('Enkripsi file gagal.');
-                }
-
-                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
-                $payload = base64_encode($iv . $encrypted);
-
-                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
-                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
-                }
-
-                // Perubahan versi lama dan pembuatan versi baru berada
-                // dalam satu transaksi database yang sama.
-                $document->versions()->update(['is_current' => false]);
-
-                $hash = hash_file('sha256', $file->getRealPath());
-                if ($hash === false) {
-                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
-                }
-
-                return DocumentVersion::create([
-                    'document_id' => $document->id,
-                    'version_number' => $validated['version_number'],
-                    'file_path' => $path,
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_size' => $file->getSize(),
-                    'file_hash' => $hash,
-                    'mime_type' => $file->getMimeType(),
-                    'encrypted_at' => now(),
-                    'is_current' => true,
-                    'notes' => $validated['notes'] ?? null,
-                    'uploaded_by' => $request->user()->id,
-                ]);
-            });
-
-            return response()->json([
-                'message' => 'Versi baru dokumen berhasil diunggah.',
-                'data' => new DocumentVersionResource($version->load('uploader')),
-            ], 201);
-        } catch (\Throwable $e) {
-            if ($path && Storage::disk('private_encrypted')->exists($path)) {
-                Storage::disk('private_encrypted')->delete($path);
-            }
-
-            report($e);
-
-            if (app()->environment('testing')) {
-                throw $e;
-            }
-
-            return response()->json([
-                'message' => 'Gagal mengunggah versi baru.',
-            ], 500);
-        }
-    }
-
-    public function update(Request $request, string $id)
-    {
-        $document = Document::findOrFail($id);
-
-        $validated = $request->validate([
-            'document_number' => 'sometimes|required|string|unique:documents,document_number,' . $document->id,
-            'document_name'   => 'sometimes|required|string|max:255',
-            'document_type'   => 'sometimes|required|in:contract,mou,addendum,other',
-            'partner'         => 'sometimes|required|string|max:255',
-            'document_date'   => 'sometimes|required|date',
-            'effective_date'  => 'sometimes|required|date',
-            'expiry_date'     => 'sometimes|required|date',
-            'status'          => 'sometimes|required|in:draft,active,expired,terminated',
-            'description'     => 'nullable|string',
-            'project_id'      => 'nullable|exists:projects,id',
-        ]);
+        $validated = $request->validated();
 
         $startDate = $validated['document_date'] ?? $validated['effective_date'] ?? $document->document_date;
         $expiryDate = $validated['expiry_date'] ?? $document->expiry_date;
@@ -569,8 +436,9 @@ class DocumentController extends Controller
         $document->update($validated);
 
         return response()->json([
+            'success' => true,
             'message' => 'Metadata dokumen berhasil diperbarui.',
-            'data'    => new DocumentResource($document->load(['project', 'creator']))
+            'data' => new DocumentResource($document->load(['project', 'creator'])),
         ]);
     }
 
@@ -588,7 +456,9 @@ class DocumentController extends Controller
             });
 
             return response()->json([
+                'success' => true,
                 'message' => 'Dokumen dipindahkan ke tempat sampah; file fisik dan riwayat versinya dipertahankan.',
+                'data' => null,
             ]);
         } catch (\Throwable $e) {
             report($e);

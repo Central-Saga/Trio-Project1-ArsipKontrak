@@ -38,8 +38,8 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('documents', DocumentController::class)->middleware('throttle:60,1');
         
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])->middleware('throttle:120,1');
-        // Arahkan post versions ke DocumentController karena method storeVersion ada di sana
-        Route::post('documents/{document}/versions', [DocumentController::class, 'storeVersion'])->middleware('throttle:30,1');
+        // Upload versi memakai FormRequest, Policy, dan DocumentVersionResource.
+        Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->middleware('throttle:30,1');
 
         // List Project untuk Dropdown Upload
         Route::get('/projects', function () {

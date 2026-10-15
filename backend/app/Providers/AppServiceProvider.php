@@ -2,7 +2,12 @@
 
 namespace App\Providers;
 
-use Illuminate\Database\Eloquent\Model; // <-- Tambahkan import ini di atas
+use App\Models\Document;
+use App\Models\User;
+use App\Policies\DocumentPolicy;
+use App\Policies\UserPolicy;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,7 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Mengaktifkan pencegahan lazy loading (aktif otomatis di luar mode production)
+        Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+
+        // Mencegah lazy loading di lingkungan non-production.
         Model::preventLazyLoading(! app()->isProduction());
     }
 }
