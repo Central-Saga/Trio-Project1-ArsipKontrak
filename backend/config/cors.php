@@ -1,5 +1,16 @@
 <?php
 
+$configuredOrigins = env('CORS_ALLOWED_ORIGINS');
+
+if (! is_string($configuredOrigins) || trim($configuredOrigins) === '') {
+    $configuredOrigins = env('FRONTEND_URL', 'http://localhost:3000');
+}
+
+$allowedOrigins = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) $configuredOrigins)
+)));
+
 return [
 
     /*
@@ -20,9 +31,7 @@ return [
     'allowed_methods' => ['*'],
 
     // PERBAIKAN: Batasi asal domain yang diizinkan (Whitelist) menggunakan env atau URL spesifik
-    'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:3000'),
-    ],
+    'allowed_origins' => $allowedOrigins,
 
     'allowed_origins_patterns' => [],
 

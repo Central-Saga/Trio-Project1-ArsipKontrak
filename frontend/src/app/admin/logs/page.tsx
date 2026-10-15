@@ -84,9 +84,16 @@ export default function ActivityLogsPage() {
 
       const response = await api.get("/admin/activity-logs");
       const payload = response.data;
-      const items = payload?.data?.data;
+      const items = payload?.data;
+      const meta = payload?.meta;
+      const hasPagination =
+        meta &&
+        Number.isFinite(Number(meta.current_page)) &&
+        Number.isFinite(Number(meta.last_page)) &&
+        Number.isFinite(Number(meta.per_page)) &&
+        Number.isFinite(Number(meta.total));
 
-      if (!payload?.success || !Array.isArray(items)) {
+      if (!payload?.success || !Array.isArray(items) || !hasPagination) {
         throw new Error("Format data log aktivitas dari server tidak valid.");
       }
 

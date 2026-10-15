@@ -10,10 +10,12 @@ class ActivityLogController extends Controller
 {
     public function index(Request $request)
     {
-        // Pastikan hanya admin yang bisa mengakses daftar log
         if ($request->user()->role !== 'admin') {
             return response()->json([
-                'message' => 'Hanya administrator yang dapat melihat log aktivitas.'
+                'success' => false,
+                'message' => 'Hanya administrator yang dapat melihat log aktivitas.',
+                'data' => null,
+                'errors' => null,
             ], 403);
         }
 
@@ -23,7 +25,13 @@ class ActivityLogController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $logs
+            'data' => $logs->items(),
+            'meta' => [
+                'current_page' => $logs->currentPage(),
+                'last_page' => $logs->lastPage(),
+                'per_page' => $logs->perPage(),
+                'total' => $logs->total(),
+            ],
         ]);
     }
 }
