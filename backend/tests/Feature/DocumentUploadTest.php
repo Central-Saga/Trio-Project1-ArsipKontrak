@@ -144,6 +144,34 @@ class DocumentUploadTest extends TestCase
         $response->assertStatus(403);
     }
 
+    public function test_non_admin_cannot_preview_confidential_document(): void
+    {
+        Storage::fake('private_encrypted');
+
+        $viewerUser = User::factory()->create([
+            'email' => 'viewer-preview@arsipkontrak.local',
+            'role' => 'viewer',
+        ]);
+
+        $document = Document::create([
+            'project_id'      => $this->project->id,
+            'document_number' => 'DOC/NDA/PREVIEW/001',
+            'document_name'   => 'Dokumen NDA Rahasia untuk Preview',
+            'document_type'   => 'contract',
+            'partner'         => 'PT Rahasia Bersama',
+            'document_date'   => '2026-09-08',
+            'effective_date'  => '2026-09-10',
+            'expiry_date'     => '2027-09-10',
+            'status'          => 'active',
+            'created_by'      => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($viewerUser)
+            ->getJson("/api/v1/documents/{$document->id}/preview");
+
+        $response->assertStatus(403);
+    }
+
     public function test_file_sha256_checksum_is_correctly_calculated_and_stored(): void
     {
         Storage::fake('local');
