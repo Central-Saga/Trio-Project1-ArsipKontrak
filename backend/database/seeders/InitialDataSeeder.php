@@ -12,35 +12,39 @@ class InitialDataSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Akun Admin Awal
-        User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name'     => 'Administrator',
-                'password' => Hash::make('password123'),
-                'role'     => 'admin',
-            ]
-        );
+        // Akun demo hanya dibuat pada lingkungan lokal dan testing.
+        if (app()->environment(['local', 'testing'])) {
+            // 1. Akun Admin Awal
+            User::updateOrCreate(
+                ['email' => 'admin@example.com'],
+                [
+                    'name'     => 'Administrator',
+                    'password' => Hash::make('password123'),
+                    'role'     => 'admin',
+                ]
+            );
 
-        // 1.b Akun Viewer Awal
-        User::updateOrCreate(
-            ['email' => 'viewer@example.com'],
-            [
-                'name'     => 'Yanto',
-                'password' => Hash::make('password123'),
-                'role'     => 'viewer',
-            ]
-        );
+            // 1.b Akun Viewer Awal
+            User::updateOrCreate(
+                ['email' => 'viewer@example.com'],
+                [
+                    'name'     => 'Yanto',
+                    'password' => Hash::make('password123'),
+                    'role'     => 'viewer',
+                ]
+            );
 
-        // Tambahkan user Asep sebagai Viewer
-        User::firstOrCreate(
-            ['email' => 'asep@example.com'],
-            [
-                'name'     => 'Asep',
-                'password' => bcrypt('password123'),
-                'role'     => 'viewer',
-            ]
-        );
+            // Tambahkan user Asep sebagai Viewer
+            User::firstOrCreate(
+                ['email' => 'asep@example.com'],
+                [
+                    'name'     => 'Asep',
+                    'password' => bcrypt('password123'),
+                    'role'     => 'viewer',
+                ]
+            );
+
+        }
 
         // 2. Proyek Awal
         Project::updateOrCreate(

@@ -28,3 +28,6 @@
 **/.DS_Store
 **/Thumbs.db
 **/*Zone.Identifier
+
+# Ignore accidental Tinker output dump
+/backend/User::create(\[
