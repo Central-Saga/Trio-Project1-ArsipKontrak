@@ -10,6 +10,11 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
+        if (! app()->environment(['local', 'testing'])) {
+            $this->command?->warn('UserSeeder dilewati: hanya untuk local/testing.');
+            return;
+        }
+
         $users = [
             [
                 'name' => 'Administrator',
