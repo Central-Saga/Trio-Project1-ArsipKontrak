@@ -20,9 +20,14 @@ class DocumentVersionController extends Controller
     public function index(string $documentId)
     {
         $document = Document::findOrFail($documentId);
+        Gate::authorize('view', $document);
+
         $versions = $document->versions()->with('uploader')->latest()->get();
 
-        return DocumentVersionResource::collection($versions);
+        return DocumentVersionResource::collection($versions)->additional([
+            'success' => true,
+            'message' => 'Riwayat versi dokumen berhasil diambil.',
+        ]);
     }
 
     /**
@@ -101,6 +106,7 @@ class DocumentVersionController extends Controller
             });
 
             return response()->json([
+                'success' => true,
                 'message' => 'Versi baru berhasil diunggah dengan enkripsi penuh.',
                 'data' => new DocumentVersionResource($version->load('uploader')),
             ], 201);
@@ -126,6 +132,9 @@ class DocumentVersionController extends Controller
      */
     public function download(string $documentId, string $versionId)
     {
+        $document = Document::findOrFail($documentId);
+        Gate::authorize('view', $document);
+
         $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
 
         if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
@@ -151,6 +160,9 @@ class DocumentVersionController extends Controller
     }
     public function preview(string $documentId, string $versionId)
     {
+        $document = Document::findOrFail($documentId);
+        Gate::authorize('view', $document);
+
         $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
 
         if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
