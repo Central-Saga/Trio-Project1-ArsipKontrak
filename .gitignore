@@ -31,3 +31,10 @@
 
 # Ignore accidental Tinker output dump
 /backend/User::create(\[
+
+# AI assistant artifacts and local agent configuration
+.claude/
+CLAUDE.md
+.agent/
+.cursor/
+*.local.json
