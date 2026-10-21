@@ -1,5 +1,7 @@
 # SAGA — Sistem Arsip Kontrak dan MoU
 
+[![CI](https://github.com/Central-Saga/Trio-Project1-ArsipKontrak/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Central-Saga/Trio-Project1-ArsipKontrak/actions/workflows/ci.yml)
+
 SAGA adalah aplikasi web untuk membantu pengelolaan arsip kontrak, Memorandum of Understanding (MoU), proyek, klien, dan riwayat dokumen secara terpusat.
 
 ## Fitur
