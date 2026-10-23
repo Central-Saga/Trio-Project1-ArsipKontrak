@@ -53,7 +53,6 @@ jobs:
       QUEUE_CONNECTION: sync
       MAIL_MAILER: array
       BROADCAST_CONNECTION: "null"
-      
 
     steps:
       - name: Checkout repository
@@ -78,10 +77,10 @@ jobs:
       - name: Prepare Laravel environment
         run: cp .env.example .env
 
-      - - name: Install Composer dependencies
-  run: composer install --no-interaction --prefer-dist --no-progress
-  env:
-    COMPOSER_CACHE_DIR: ${{ runner.temp }}/composer-cache
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+        env:
+          COMPOSER_CACHE_DIR: ${{ runner.temp }}/composer-cache
 
       - name: Generate application key
         run: php artisan key:generate --force
