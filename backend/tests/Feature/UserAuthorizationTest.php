@@ -146,6 +146,58 @@ class UserAuthorizationTest extends TestCase
         ]);
     }
 
+    public function test_admin_cannot_delete_the_last_active_admin(): void
+    {
+        // Admin yang mengirim request tidak aktif; hanya target yang aktif.
+        $actor = User::factory()->create(['role' => 'admin']);
+        $actor->status = 'inactive';
+        $actor->save();
+
+        $lastActiveAdmin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $this->actingAs($actor, 'sanctum')
+            ->deleteJson("/api/v1/admin/users/{$lastActiveAdmin->id}")
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $lastActiveAdmin->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+
+        $this->assertSame(
+            1,
+            User::query()
+                ->where('role', 'admin')
+                ->where('status', 'active')
+                ->count()
+        );
+    }
+
+    public function test_admin_can_delete_another_active_admin_if_one_remains(): void
+    {
+        $actor = User::factory()->create(['role' => 'admin']);
+        $target = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($actor, 'sanctum')
+            ->deleteJson("/api/v1/admin/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data', null);
+
+        $this->assertDatabaseMissing('users', [
+            'id' => $target->id,
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $actor->id,
+            'role' => 'admin',
+            'status' => 'active',
+        ]);
+    }
+
     public function test_admin_can_delete_another_user(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
