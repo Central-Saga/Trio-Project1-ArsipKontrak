@@ -35,6 +35,8 @@ Route::prefix('v1')->group(function () {
             Route::get('documents/{id}/download', [DocumentController::class, 'download']);
         });
 
+        Route::get('documents/{id}/metadata', [DocumentController::class, 'metadata'])
+            ->middleware('throttle:60,1');
         Route::apiResource('documents', DocumentController::class)->middleware('throttle:60,1');
         
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])->middleware('throttle:120,1');

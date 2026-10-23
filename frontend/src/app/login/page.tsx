@@ -28,6 +28,20 @@ export default function LoginPage() {
       if (token) {
         localStorage.setItem("token", token);
         localStorage.setItem("auth_token", token);
+
+        // Sinkronkan sesi untuk kebutuhan metadata server.
+        // Login tetap dapat digunakan jika sinkronisasi ini gagal.
+        try {
+          await fetch("/api/document-metadata-session", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ token }),
+          });
+        } catch {
+          // Metadata akan memakai judul cadangan sampai sesi tersedia.
+        }
       }
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));

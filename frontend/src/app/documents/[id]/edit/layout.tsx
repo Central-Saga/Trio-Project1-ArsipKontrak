@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getDocumentNameForMetadata } from "@/lib/server-document-metadata";
 
 type EditLayoutProps = {
   params: Promise<{ id: string }>;
@@ -12,10 +13,13 @@ export async function generateMetadata({
   params,
 }: EditLayoutProps): Promise<Metadata> {
   const { id } = await params;
+  const documentName = await getDocumentNameForMetadata(id);
   const canonicalPath = `/documents/${encodeURIComponent(id)}/edit`;
 
   return {
-    title: `Edit Dokumen ${id}`,
+    title: documentName
+      ? `Edit Dokumen: ${documentName}`
+      : `Edit Dokumen ${id}`,
     description:
       "Edit informasi dokumen kontrak dan nota kesepahaman pada Arsip Kontrak.",
     alternates: {

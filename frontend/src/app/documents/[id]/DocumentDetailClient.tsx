@@ -76,7 +76,7 @@ export default function DocumentDetailPage() {
       const res = await api.get(`/documents/${id}`);
       const docData = res.data.data;
       if (typeof docData.document_name === "string" && docData.document_name.trim()) {
-        document.title = `${docData.document_name.trim()} — Arsip Kontrak`;
+        document.title = `Detail Dokumen: ${docData.document_name.trim()} — Arsip Kontrak`;
       }
       setDocDetail(docData);
       if (docData.versions && docData.versions.length > 0) {

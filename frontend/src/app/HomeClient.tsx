@@ -132,6 +132,14 @@ export default function DashboardPage() {
     } catch {
       // Ignore error
     } finally {
+      try {
+        await fetch("/api/document-metadata-session", {
+          method: "DELETE",
+        });
+      } catch {
+        // Pembersihan cookie dilakukan secara best-effort.
+      }
+
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("auth_token");

@@ -300,6 +300,28 @@ class DocumentController extends Controller
         return new DocumentResource($document);
     }
 
+    /**
+     * Metadata minimum untuk judul halaman frontend.
+     * Tetap menggunakan policy dan tidak mencatat VIEW_DOCUMENT.
+     */
+    public function metadata(string $id)
+    {
+        $document = Document::query()
+            ->select(['id', 'document_name', 'description'])
+            ->findOrFail($id);
+
+        Gate::authorize('view', $document);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'document_name' => $document->document_name,
+            ],
+        ], 200, [
+            'Cache-Control' => 'no-store, private',
+        ]);
+    }
+
     public function preview(Request $request, string $id)
     {
         $document = Document::with('versions')->findOrFail($id);
