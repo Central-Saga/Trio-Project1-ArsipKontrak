@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import DocumentDetailClient from "./DocumentDetailClient";
-import { getDocumentNameForMetadata } from "@/lib/server-document-metadata";
+import { getDocumentMetadataForRoute } from "@/lib/server-document-metadata";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -14,7 +15,9 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const documentName = await getDocumentNameForMetadata(id);
+  const lookup = await getDocumentMetadataForRoute(id);
+  const documentName =
+    lookup.status === "found" ? lookup.documentName : null;
   const canonicalPath = `/documents/${encodeURIComponent(id)}`;
 
   return {
@@ -33,6 +36,15 @@ export async function generateMetadata({
   };
 }
 
-export default function DocumentDetailPage() {
+export default async function DocumentDetailPage({
+  params,
+}: PageProps) {
+  const { id } = await params;
+  const lookup = await getDocumentMetadataForRoute(id);
+
+  if (lookup.status === "not-found") {
+    notFound();
+  }
+
   return <DocumentDetailClient />;
 }
