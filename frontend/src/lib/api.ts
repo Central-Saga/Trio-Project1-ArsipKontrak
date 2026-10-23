@@ -40,6 +40,9 @@ api.interceptors.response.use(
       : undefined;
 
     if (typeof window !== "undefined" && status === 401) {
+      void fetch("/api/document-metadata-session", {
+        method: "DELETE",
+      }).catch(() => undefined);
       AUTH_STORAGE_KEYS.forEach((key) => {
         window.localStorage.removeItem(key);
       });

@@ -134,6 +134,12 @@ class ApiContractTest extends TestCase
             ]);
     }
 
+    public function test_document_metadata_endpoint_requires_authentication(): void
+    {
+        $this->getJson('/api/v1/documents/1/metadata')
+            ->assertUnauthorized();
+    }
+
     public function test_activity_log_pagination_exposes_standard_metadata(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
