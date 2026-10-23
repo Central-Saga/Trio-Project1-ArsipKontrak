@@ -7,6 +7,7 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\ActivityLog;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class UserController extends Controller
@@ -44,23 +45,52 @@ class UserController extends Controller
 
     public function destroy(string $id)
     {
-        $target = User::findOrFail($id);
-        Gate::authorize('delete', $target);
-
-        if ((int) $target->id === (int) auth()->id()) {
-            abort(403, 'Tidak dapat menghapus akun yang sedang digunakan sendiri.');
-        }
-
-        $userName = $target->name;
         $actor = auth()->user();
 
-        $target->delete();
+        DB::transaction(function () use ($id, $actor): void {
+            /*
+             * Kunci semua admin aktif dalam urutan ID yang konsisten.
+             * Ini menserialisasi penghapusan user agar dua request bersamaan
+             * tidak dapat menghapus seluruh admin aktif.
+             */
+            $activeAdmins = User::query()
+                ->where('role', 'admin')
+                ->where('status', 'active')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id']);
 
-        ActivityLog::record(
-            $actor->id,
-            'HAPUS_PENGGUNA',
-            'Admin ' . $actor->name . ' menghapus pengguna: ' . $userName
-        );
+            // Ambil dan kunci target setelah lock admin aktif didapatkan.
+            $target = User::query()
+                ->lockForUpdate()
+                ->findOrFail($id);
+
+            // Policy menolak non-admin dan penghapusan akun sendiri.
+            Gate::authorize('delete', $target);
+
+            // Sistem harus selalu menyisakan minimal satu admin aktif.
+            if (
+                $target->role === 'admin'
+                && $target->status === 'active'
+                && $activeAdmins->count() <= 1
+            ) {
+                abort(
+                    403,
+                    'Tidak dapat menghapus admin aktif terakhir.'
+                );
+            }
+
+            $userName = $target->name;
+
+            $target->delete();
+
+            // Catat audit di transaksi yang sama dengan penghapusan.
+            ActivityLog::record(
+                $actor->id,
+                'HAPUS_PENGGUNA',
+                'Admin ' . $actor->name . ' menghapus pengguna: ' . $userName
+            );
+        });
 
         return response()->json([
             'success' => true,
