@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\DTO\DocumentVersionListQueryData;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
@@ -11,12 +12,12 @@ use Illuminate\Support\Facades\DB;
 
 class DocumentVersionRepository implements DocumentVersionRepositoryInterface
 {
-    public function forDocument(Document $document, int $limit = 100): Collection
+    public function forDocument(Document $document, DocumentVersionListQueryData $query): Collection
     {
         return $document->versions()
             ->with('uploader')
-            ->latest()
-            ->limit($limit)
+            ->orderBy($query->sort, $query->direction)
+            ->limit($query->perPage)
             ->get();
     }
 

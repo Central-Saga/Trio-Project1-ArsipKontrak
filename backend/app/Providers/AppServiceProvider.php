@@ -6,13 +6,17 @@ use App\Models\Document;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
 use App\Policies\UserPolicy;
+use App\Repositories\Contracts\ActivityLogRepositoryInterface;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
+use App\Repositories\Contracts\ProjectRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Eloquent\ActivityLogRepository;
 use App\Repositories\Eloquent\DocumentRepository;
 use App\Repositories\Eloquent\DocumentVersionRepository;
 use App\Repositories\Eloquent\NotificationRepository;
+use App\Repositories\Eloquent\ProjectRepository;
 use App\Repositories\Eloquent\UserRepository;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
@@ -26,9 +30,11 @@ class AppServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     public array $bindings = [
+        ActivityLogRepositoryInterface::class => ActivityLogRepository::class,
         DocumentRepositoryInterface::class => DocumentRepository::class,
         DocumentVersionRepositoryInterface::class => DocumentVersionRepository::class,
         NotificationRepositoryInterface::class => NotificationRepository::class,
+        ProjectRepositoryInterface::class => ProjectRepository::class,
         UserRepositoryInterface::class => UserRepository::class,
     ];
 
