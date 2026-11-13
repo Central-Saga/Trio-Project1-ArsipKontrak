@@ -1,9 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\DocumentVersionController;
-use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserController; // <-- 1. Tambahkan import UserController
 use App\Models\Project;
@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 // Bungkus dengan prefix 'v1' agar sesuai standar enterprise
 Route::prefix('v1')->group(function () {
-    
+
     // Auth Public
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
 
@@ -27,7 +27,8 @@ Route::prefix('v1')->group(function () {
 
         // Endpoint Dokumen & Arsip
         Route::get('documents/trash', [DocumentController::class, 'trashed'])->middleware('throttle:120,1');
-        Route::post('documents/{id}/restore', [DocumentController::class, 'restore'])->middleware('throttle:30,1');
+        Route::post('documents/{id}/restore', [DocumentController::class, 'restore'])
+            ->middleware(['throttle:30,1', 'idempotent']);
 
         // Rute khusus preview & download dokumen dengan proteksi Rate Limiter (Throttle: 30 req/min)
         Route::middleware('throttle:30,1')->group(function () {
@@ -37,11 +38,14 @@ Route::prefix('v1')->group(function () {
 
         Route::get('documents/{id}/metadata', [DocumentController::class, 'metadata'])
             ->middleware('throttle:60,1');
-        Route::apiResource('documents', DocumentController::class)->middleware('throttle:60,1');
-        
+        Route::apiResource('documents', DocumentController::class)
+            ->middleware('throttle:60,1')
+            ->middlewareFor('store', 'idempotent');
+
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])->middleware('throttle:120,1');
         // Upload versi memakai FormRequest, Policy, dan DocumentVersionResource.
-        Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])->middleware('throttle:30,1');
+        Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])
+            ->middleware(['throttle:30,1', 'idempotent']);
 
         // List Project untuk Dropdown Upload
         Route::get('/projects', function () {
@@ -53,7 +57,8 @@ Route::prefix('v1')->group(function () {
 
         // --- RUTE BARU: Manajemen Pengguna untuk Admin ---
         Route::get('/admin/users', [UserController::class, 'index'])->middleware('throttle:120,1');
-        Route::post('/admin/users', [UserController::class, 'store'])->middleware('throttle:30,1');
+        Route::post('/admin/users', [UserController::class, 'store'])
+            ->middleware(['throttle:30,1', 'idempotent']);
         Route::delete('/admin/users/{id}', [UserController::class, 'destroy'])->middleware('throttle:30,1');
         // ------------------------------------------------
 

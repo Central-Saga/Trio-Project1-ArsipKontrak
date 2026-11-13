@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApiErrorResponse;
+use App\Http\Middleware\EnsureIdempotentRequest;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -19,10 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(ApiErrorResponse::class);
+
+        $middleware->alias([
+            'idempotent' => EnsureIdempotentRequest::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $isApiRequest = static fn (Request $request): bool =>
-            $request->is('api/*') || $request->expectsJson();
+        $isApiRequest = static fn (Request $request): bool => $request->is('api/*') || $request->expectsJson();
 
         $exceptions->shouldRenderJsonWhen($isApiRequest);
 
@@ -104,7 +108,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $exceptions->render(
-            function (\Throwable $e, Request $request) use ($isApiRequest) {
+            function (Throwable $e, Request $request) use ($isApiRequest) {
                 if (! $isApiRequest($request)) {
                     return null;
                 }

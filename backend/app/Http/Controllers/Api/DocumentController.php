@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\CreateDocumentData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Resources\DocumentResource;
+use App\Models\ActivityLog;
 use App\Models\Document;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
+use App\Services\DocumentService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
@@ -18,9 +22,9 @@ class DocumentController extends Controller
 {
     public function __construct(
         private DocumentRepositoryInterface $documents,
-        private DocumentVersionRepositoryInterface $versions
-    ) {
-    }
+        private DocumentVersionRepositoryInterface $versions,
+        private DocumentService $documentService
+    ) {}
 
     /**
      * Fungsi bantu untuk menentukan status otomatis berdasarkan tanggal atau pilihan manual.
@@ -73,7 +77,7 @@ class DocumentController extends Controller
                 'expired' => $statistics['dokumen_expired'],
                 'terminated' => $statistics['dokumen_terminated'],
                 'distribution' => $statusDistribution,
-            ]
+            ],
         ]);
     }
 
@@ -125,90 +129,30 @@ class DocumentController extends Controller
         Gate::authorize('create', Document::class);
 
         $file = $request->file('file');
-        $path = null;
+
+        if (! $file instanceof UploadedFile) {
+            return response()->json([
+                'message' => 'Berkas PDF dokumen wajib diunggah.',
+            ], 422);
+        }
+
+        $effectiveDate = $validated['effective_date'] ?? $validated['document_date'];
+
+        $data = CreateDocumentData::fromValidated(
+            $validated,
+            $this->determineStatus(
+                $effectiveDate,
+                $validated['expiry_date'],
+                $validated['status'] ?? null
+            )
+        );
 
         try {
-            $document = $this->documents->transaction(function () use (
-                $validated, $request, $file, &$path
-            ) {
-                $effectiveDate = $validated['effective_date']
-                    ?? $validated['document_date'];
-
-                $status = $this->determineStatus(
-                    $effectiveDate,
-                    $validated['expiry_date'],
-                    $validated['status'] ?? null
-                );
-
-                $document = $this->documents->create([
-                    'document_number' => $validated['document_number'],
-                    'document_name' => $validated['document_name'],
-                    'document_type' => $validated['document_type'],
-                    'partner' => $validated['partner'],
-                    'document_date' => $validated['document_date'],
-                    'effective_date' => $effectiveDate,
-                    'expiry_date' => $validated['expiry_date'],
-                    'status' => $status,
-                    'description' => $validated['description'] ?? null,
-                    'project_id' => $validated['project_id'],
-                    'created_by' => $request->user()->id,
-                ]);
-
-                $content = file_get_contents($file->getRealPath());
-                if ($content === false) {
-                    throw new \RuntimeException('File tidak dapat dibaca.');
-                }
-
-                $key = config('app.key');
-                if (str_starts_with($key, 'base64:')) {
-                    $key = base64_decode(substr($key, 7), true);
-                }
-
-                if ($key === false || $key === '') {
-                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
-                }
-
-                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-                $encrypted = openssl_encrypt(
-                    $content,
-                    'aes-256-cbc',
-                    $key,
-                    0,
-                    $iv
-                );
-
-                if ($encrypted === false) {
-                    throw new \RuntimeException('Enkripsi file gagal.');
-                }
-
-                $payload = base64_encode($iv . $encrypted);
-                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
-
-                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
-                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
-                }
-
-                $hash = hash_file('sha256', $file->getRealPath());
-                if ($hash === false) {
-                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
-                }
-
-                $this->versions->create([
-                    'document_id' => $document->id,
-                    'version_number' => 'v1.0',
-                    'file_path' => $path,
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_size' => $file->getSize(),
-                    'file_hash' => $hash,
-                    'mime_type' => $file->getMimeType(),
-                    'encrypted_at' => now(),
-                    'is_current' => true,
-                    'notes' => $validated['notes'] ?? 'Dokumen awal diunggah.',
-                    'uploaded_by' => $request->user()->id,
-                ]);
-
-                return $document;
-            });
+            $document = $this->documentService->createDocument(
+                $data,
+                $file,
+                (int) $request->user()->id
+            );
 
             return response()->json([
                 'success' => true,
@@ -218,12 +162,6 @@ class DocumentController extends Controller
                 ),
             ], 201);
         } catch (\Throwable $e) {
-            // Rollback database ditangani otomatis oleh transaksi repository.
-            // File bukan bagian dari transaksi database, jadi bersihkan secara manual.
-            if ($path && Storage::disk('private_encrypted')->exists($path)) {
-                Storage::disk('private_encrypted')->delete($path);
-            }
-
             report($e);
 
             if (app()->environment('testing')) {
@@ -250,7 +188,7 @@ class DocumentController extends Controller
         $user = request()->user();
 
         if ($user) {
-            \App\Models\ActivityLog::record(
+            ActivityLog::record(
                 userId: $user->id,
                 action: 'VIEW_DOCUMENT',
                 description: "Pengguna {$user->name} ({$user->role}) melihat detail dokumen: {$document->document_name}",
@@ -299,7 +237,7 @@ class DocumentController extends Controller
         try {
             $user = $request->user();
             if ($user) {
-                \App\Models\ActivityLog::record(
+                ActivityLog::record(
                     userId: $user->id,
                     action: 'PREVIEW_PDF',
                     description: "Pengguna {$user->name} ({$user->role}) membuka pratinjau dokumen: {$document->document_name}",
@@ -312,7 +250,7 @@ class DocumentController extends Controller
                 $this->requestedVersionId($request)
             );
 
-            if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
+            if (! $version || ! Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
@@ -338,11 +276,11 @@ class DocumentController extends Controller
 
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . addslashes($safeFilename) . '"',
+                'Content-Disposition' => 'inline; filename="'.addslashes($safeFilename).'"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Gagal memuat pratinjau: ' . $e->getMessage()
+                'message' => 'Gagal memuat pratinjau: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -356,7 +294,7 @@ class DocumentController extends Controller
             $user = $request->user();
 
             if ($user) {
-                \App\Models\ActivityLog::record(
+                ActivityLog::record(
                     userId: $user->id,
                     action: 'DOWNLOAD_DOCUMENT',
                     description: "Administrator {$user->name} mengunduh berkas dokumen: {$document->document_name}",
@@ -369,7 +307,7 @@ class DocumentController extends Controller
                 $this->requestedVersionId($request)
             );
 
-            if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
+            if (! $version || ! Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
@@ -395,11 +333,11 @@ class DocumentController extends Controller
 
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="' . addslashes($safeFilename) . '"',
+                'Content-Disposition' => 'attachment; filename="'.addslashes($safeFilename).'"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Gagal mengunduh: ' . $e->getMessage()
+                'message' => 'Gagal mengunduh: '.$e->getMessage(),
             ], 500);
         }
     }

@@ -2,91 +2,212 @@
 
 namespace App\Services;
 
+use App\DTO\CreateDocumentData;
+use App\DTO\CreateDocumentVersionData;
+use App\DTO\EncryptedFileData;
 use App\Models\Document;
 use App\Models\DocumentVersion;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use App\Repositories\Contracts\DocumentRepositoryInterface;
+use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentService
 {
-    protected function encryptAndStore(UploadedFile $file): array
-    {
-        $originalName = $file->getClientOriginalName();
-        $fileContent = file_get_contents($file->getRealPath());
+    public function __construct(
+        private DocumentRepositoryInterface $documents,
+        private DocumentVersionRepositoryInterface $versions,
+    ) {}
 
-        $encryptionKey = config('app.key');
-        if (str_starts_with($encryptionKey, 'base64:')) {
-            $encryptionKey = base64_decode(substr($encryptionKey, 7));
+    /**
+     * Buat dokumen baru beserta versi pertamanya dalam satu transaksi.
+     */
+    public function createDocument(
+        CreateDocumentData $data,
+        UploadedFile $file,
+        int $userId
+    ): Document {
+        $storedPath = null;
+
+        try {
+            return $this->documents->transaction(function () use (
+                $data,
+                $file,
+                $userId,
+                &$storedPath
+            ) {
+                $document = $this->documents->create([
+                    'project_id' => $data->projectId,
+                    'document_number' => $data->documentNumber,
+                    'document_name' => $data->documentName,
+                    'document_type' => $data->documentType,
+                    'partner' => $data->partner,
+                    'document_date' => $data->documentDate,
+                    'effective_date' => $data->effectiveDate,
+                    'expiry_date' => $data->expiryDate,
+                    'status' => $data->status,
+                    'description' => $data->description,
+                    'created_by' => $userId,
+                ]);
+
+                $encryptedFile = $this->encryptAndStore($file);
+                $storedPath = $encryptedFile->path;
+
+                $this->versions->create([
+                    'document_id' => $document->id,
+                    'version_number' => $data->versionNumber,
+                    'file_path' => $encryptedFile->path,
+                    'file_name' => $encryptedFile->originalName,
+                    'file_size' => $encryptedFile->size,
+                    'file_hash' => $encryptedFile->hash,
+                    'mime_type' => $encryptedFile->mimeType,
+                    'encrypted_at' => now(),
+                    'is_current' => true,
+                    'notes' => $data->notes,
+                    'uploaded_by' => $userId,
+                ]);
+
+                return $document;
+            });
+        } catch (\Throwable $e) {
+            // File bukan bagian dari transaksi database, bersihkan manual.
+            $this->deleteStoredFile($storedPath);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Tambahkan versi baru dan jadikan versi tersebut sebagai versi aktif.
+     */
+    public function addVersion(
+        Document $document,
+        CreateDocumentVersionData $data,
+        UploadedFile $file,
+        int $userId
+    ): DocumentVersion {
+        $storedPath = null;
+
+        try {
+            return $this->versions->transaction(function () use (
+                $document,
+                $data,
+                $file,
+                $userId,
+                &$storedPath
+            ) {
+                $encryptedFile = $this->encryptAndStore($file);
+                $storedPath = $encryptedFile->path;
+
+                $this->versions->markAllNotCurrent($document);
+
+                $versionNumber = $data->versionNumber
+                    ?? 'v'.($this->versions->countForDocument($document) + 1).'.0';
+
+                return $this->versions->create([
+                    'document_id' => $document->id,
+                    'version_number' => $versionNumber,
+                    'file_path' => $encryptedFile->path,
+                    'file_name' => $encryptedFile->originalName,
+                    'file_size' => $encryptedFile->size,
+                    'file_hash' => $encryptedFile->hash,
+                    'mime_type' => $encryptedFile->mimeType,
+                    'encrypted_at' => now(),
+                    'is_current' => true,
+                    'notes' => $data->notes,
+                    'uploaded_by' => $userId,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            $this->deleteStoredFile($storedPath);
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Enkripsi file dengan AES-256-CBC lalu simpan di disk privat.
+     */
+    private function encryptAndStore(UploadedFile $file): EncryptedFileData
+    {
+        $realPath = $file->getRealPath();
+
+        if (! is_string($realPath) || $realPath === '') {
+            throw new \RuntimeException('File tidak dapat dibaca.');
         }
 
-        $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-        $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-        $payload = base64_encode($iv . $encryptedContent);
+        $content = file_get_contents($realPath);
 
-        $path = 'documents/contracts/' . uniqid() . '.enc';
-        Storage::disk('private_encrypted')->put($path, $payload);
+        if ($content === false) {
+            throw new \RuntimeException('File tidak dapat dibaca.');
+        }
 
-        $fileHash = hash_file('sha256', $file->getRealPath());
+        $encryptionKey = config('app.key');
 
-        return [
-            'file_path' => $path,
-            'file_name' => $originalName,
-            'file_size' => $file->getSize(),
-            'file_hash' => $fileHash,
-            'mime_type' => $file->getMimeType(),
-        ];
+        if (! is_string($encryptionKey) || $encryptionKey === '') {
+            throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
+        }
+
+        if (str_starts_with($encryptionKey, 'base64:')) {
+            $encryptionKey = base64_decode(substr($encryptionKey, 7), true);
+        }
+
+        if ($encryptionKey === false || $encryptionKey === '') {
+            throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
+        }
+
+        $ivLength = openssl_cipher_iv_length('aes-256-cbc');
+
+        if ($ivLength === false) {
+            throw new \RuntimeException('Konfigurasi enkripsi tidak valid.');
+        }
+
+        $iv = random_bytes($ivLength);
+        $encrypted = openssl_encrypt(
+            $content,
+            'aes-256-cbc',
+            $encryptionKey,
+            0,
+            $iv
+        );
+
+        if ($encrypted === false) {
+            throw new \RuntimeException('Enkripsi file gagal.');
+        }
+
+        $path = 'documents/contracts/'.bin2hex(random_bytes(16)).'.enc';
+
+        if (! Storage::disk('private_encrypted')->put($path, base64_encode($iv.$encrypted))) {
+            throw new \RuntimeException('File terenkripsi gagal disimpan.');
+        }
+
+        $hash = hash_file('sha256', $realPath);
+
+        if ($hash === false) {
+            Storage::disk('private_encrypted')->delete($path);
+
+            throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
+        }
+
+        return new EncryptedFileData(
+            path: $path,
+            originalName: $file->getClientOriginalName(),
+            size: (int) $file->getSize(),
+            hash: $hash,
+            mimeType: (string) ($file->getMimeType() ?? 'application/octet-stream'),
+        );
     }
 
-    public function createDocument(array $validatedData, UploadedFile $file, int $userId): Document
+    private function deleteStoredFile(?string $path): void
     {
-        return DB::transaction(function () use ($validatedData, $file, $userId) {
-            $document = Document::create([
-                'document_number' => $validatedData['document_number'],
-                'document_name'   => $validatedData['document_name'],
-                'document_type'   => $validatedData['document_type'],
-                'partner'         => $validatedData['partner'],
-                'document_date'   => $validatedData['document_date'],
-                'effective_date'  => $validatedData['effective_date'],
-                'expiry_date'     => $validatedData['expiry_date'],
-                'status'          => $validatedData['status'],
-                'description'     => $validatedData['description'] ?? null,
-                'project_id'      => $validatedData['project_id'] ?? null,
-                'created_by'      => $userId,
-            ]);
+        if ($path === null) {
+            return;
+        }
 
-            $fileData = $this->encryptAndStore($file);
+        $disk = Storage::disk('private_encrypted');
 
-            DocumentVersion::create([
-                'document_id'    => $document->id,
-                'version_number' => $validatedData['version_number'] ?? 'v1.0',
-                'file_path'      => $fileData['file_path'],
-                'file_name'      => $fileData['file_name'],
-                'file_size'      => $fileData['file_size'],
-                'file_hash'      => $fileData['file_hash'],
-                'mime_type'      => $fileData['mime_type'],
-                'notes'          => $validatedData['notes'] ?? 'Dokumen awal diunggah.',
-                'uploaded_by'    => $userId,
-            ]);
-
-            return $document;
-        });
-    }
-
-    public function addVersion(Document $document, array $validatedData, UploadedFile $file, int $userId): DocumentVersion
-    {
-        $fileData = $this->encryptAndStore($file);
-
-        return DocumentVersion::create([
-            'document_id'    => $document->id,
-            'version_number' => $validatedData['version_number'],
-            'file_path'      => $fileData['file_path'],
-            'file_name'      => $fileData['file_name'],
-            'file_size'      => $fileData['file_size'],
-            'file_hash'      => $fileData['file_hash'],
-            'mime_type'      => $fileData['mime_type'],
-            'notes'          => $validatedData['notes'] ?? null,
-            'uploaded_by'    => $userId,
-        ]);
+        if ($disk->exists($path)) {
+            $disk->delete($path);
+        }
     }
 }

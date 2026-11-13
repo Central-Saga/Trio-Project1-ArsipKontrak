@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\CreateDocumentVersionData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDocumentVersionRequest;
 use App\Http\Resources\DocumentVersionResource;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
+use App\Services\DocumentService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
@@ -14,9 +17,9 @@ class DocumentVersionController extends Controller
 {
     public function __construct(
         private DocumentRepositoryInterface $documents,
-        private DocumentVersionRepositoryInterface $versions
-    ) {
-    }
+        private DocumentVersionRepositoryInterface $versions,
+        private DocumentService $documentService
+    ) {}
 
     /**
      * Tampilkan daftar versi untuk suatu dokumen.
@@ -45,68 +48,20 @@ class DocumentVersionController extends Controller
         Gate::authorize('update', $document);
 
         $file = $request->file('file');
-        $path = null;
+
+        if (! $file instanceof UploadedFile) {
+            return response()->json([
+                'message' => 'File revisi kontrak wajib diunggah.',
+            ], 422);
+        }
 
         try {
-            $version = $this->versions->transaction(function () use (
-                $document, $validated, $file, $request, &$path
-            ) {
-                $content = file_get_contents($file->getRealPath());
-                if ($content === false) {
-                    throw new \RuntimeException('File tidak dapat dibaca.');
-                }
-
-                $key = config('app.key');
-                if (str_starts_with($key, 'base64:')) {
-                    $key = base64_decode(substr($key, 7), true);
-                }
-
-                if ($key === false || $key === '') {
-                    throw new \RuntimeException('Kunci enkripsi aplikasi tidak valid.');
-                }
-
-                $iv = random_bytes(openssl_cipher_iv_length('aes-256-cbc'));
-                $encrypted = openssl_encrypt(
-                    $content,
-                    'aes-256-cbc',
-                    $key,
-                    0,
-                    $iv
-                );
-
-                if ($encrypted === false) {
-                    throw new \RuntimeException('Enkripsi file gagal.');
-                }
-
-                $path = 'documents/contracts/' . bin2hex(random_bytes(16)) . '.enc';
-                $payload = base64_encode($iv . $encrypted);
-
-                if (! Storage::disk('private_encrypted')->put($path, $payload)) {
-                    throw new \RuntimeException('File terenkripsi gagal disimpan.');
-                }
-
-                $this->versions->markAllNotCurrent($document);
-
-                $hash = hash_file('sha256', $file->getRealPath());
-                if ($hash === false) {
-                    throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
-                }
-
-                return $this->versions->create([
-                    'document_id' => $document->id,
-                    'version_number' => $validated['version_number']
-                        ?? 'v' . ($this->versions->countForDocument($document) + 1) . '.0',
-                    'file_path' => $path,
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_size' => $file->getSize(),
-                    'file_hash' => $hash,
-                    'mime_type' => $file->getMimeType(),
-                    'encrypted_at' => now(),
-                    'is_current' => true,
-                    'notes' => $validated['notes'] ?? null,
-                    'uploaded_by' => $request->user()->id,
-                ]);
-            });
+            $version = $this->documentService->addVersion(
+                $document,
+                CreateDocumentVersionData::fromValidated($validated),
+                $file,
+                (int) $request->user()->id
+            );
 
             return response()->json([
                 'success' => true,
@@ -114,10 +69,6 @@ class DocumentVersionController extends Controller
                 'data' => new DocumentVersionResource($version->load('uploader')),
             ], 201);
         } catch (\Throwable $e) {
-            if ($path && Storage::disk('private_encrypted')->exists($path)) {
-                Storage::disk('private_encrypted')->delete($path);
-            }
-
             report($e);
 
             if (app()->environment('testing')) {
@@ -140,7 +91,7 @@ class DocumentVersionController extends Controller
 
         $version = $this->versions->findForDocumentOrFail($documentId, $versionId);
 
-        if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
+        if (! Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
@@ -169,7 +120,7 @@ class DocumentVersionController extends Controller
 
         $version = $this->versions->findForDocumentOrFail($documentId, $versionId);
 
-        if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
+        if (! Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
@@ -188,7 +139,7 @@ class DocumentVersionController extends Controller
 
         return response()->make($decryptedContent, 200, [
             'Content-Type' => $version->mime_type,
-            'Content-Disposition' => 'inline; filename="' . $version->file_name . '"'
+            'Content-Disposition' => 'inline; filename="'.$version->file_name.'"',
         ]);
     }
 }
