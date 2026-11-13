@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Document;
+use App\Repositories\Contracts\DocumentRepositoryInterface;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class UpdateExpiredDocuments extends Command
 {
@@ -25,15 +25,16 @@ class UpdateExpiredDocuments extends Command
     /**
      * Execute the console command.
      */
-    public function handle()
+    public function handle(DocumentRepositoryInterface $documents): int
     {
         // Cari dokumen berstatus active atau draft yang expiry_date-nya sudah lewat
-        $updatedCount = Document::whereIn('status', ['active', 'draft'])
-            ->where('expiry_date', '<', Carbon::today())
-            ->update(['status' => 'expired']);
+        $updatedCount = $documents->markExpiredForStatuses(
+            ['active', 'draft'],
+            Carbon::today()
+        );
 
         $this->info("Berhasil memperbarui {$updatedCount} dokumen menjadi expired.");
-        
-        return Command::SUCCESS;
+
+        return self::SUCCESS;
     }
 }

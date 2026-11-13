@@ -5,18 +5,23 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Http\Requests\UpdateDocumentRequest;
-use App\Models\Document;
-use App\Models\DocumentVersion;
 use App\Http\Resources\DocumentResource;
-use App\Http\Resources\DocumentVersionResource;
+use App\Models\Document;
+use App\Repositories\Contracts\DocumentRepositoryInterface;
+use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
 class DocumentController extends Controller
 {
+    public function __construct(
+        private DocumentRepositoryInterface $documents,
+        private DocumentVersionRepositoryInterface $versions
+    ) {
+    }
+
     /**
      * Fungsi bantu untuk menentukan status otomatis berdasarkan tanggal atau pilihan manual.
      */
@@ -47,32 +52,26 @@ class DocumentController extends Controller
 
     public function statistics()
     {
-        $totalArsip = Document::count();
-        $dokumenAktif = Document::where('status', 'active')->count();
-        $dokumenInactive = Document::where('status', 'inactive')->count();
-        $dokumenDraft = Document::where('status', 'draft')->count();
-        $dokumenExpired = Document::where('status', 'expired')->count();
-        $dokumenTerminated = Document::where('status', 'terminated')->count();
-        $totalKontrak = Document::where('document_type', 'contract')->count();
+        $statistics = $this->documents->statistics();
 
         $statusDistribution = [
-            ['name' => 'Active', 'value' => $dokumenAktif, 'color' => '#10b981'],
-            ['name' => 'Inactive', 'value' => $dokumenInactive, 'color' => '#64748b'],
-            ['name' => 'Draft', 'value' => $dokumenDraft, 'color' => '#f59e0b'],
-            ['name' => 'Expired', 'value' => $dokumenExpired, 'color' => '#f43f5e'],
-            ['name' => 'Terminated', 'value' => $dokumenTerminated, 'color' => '#475569'],
+            ['name' => 'Active', 'value' => $statistics['dokumen_aktif'], 'color' => '#10b981'],
+            ['name' => 'Inactive', 'value' => $statistics['dokumen_inactive'], 'color' => '#64748b'],
+            ['name' => 'Draft', 'value' => $statistics['dokumen_draft'], 'color' => '#f59e0b'],
+            ['name' => 'Expired', 'value' => $statistics['dokumen_expired'], 'color' => '#f43f5e'],
+            ['name' => 'Terminated', 'value' => $statistics['dokumen_terminated'], 'color' => '#475569'],
         ];
 
         return response()->json([
             'success' => true,
             'data' => [
-                'total_arsip' => $totalArsip,
-                'total_kontrak' => $totalKontrak,
-                'dokumen_aktif' => $dokumenAktif,
-                'inactive' => $dokumenInactive,
-                'draft' => $dokumenDraft,
-                'expired' => $dokumenExpired,
-                'terminated' => $dokumenTerminated,
+                'total_arsip' => $statistics['total_arsip'],
+                'total_kontrak' => $statistics['total_kontrak'],
+                'dokumen_aktif' => $statistics['dokumen_aktif'],
+                'inactive' => $statistics['dokumen_inactive'],
+                'draft' => $statistics['dokumen_draft'],
+                'expired' => $statistics['dokumen_expired'],
+                'terminated' => $statistics['dokumen_terminated'],
                 'distribution' => $statusDistribution,
             ]
         ]);
@@ -82,33 +81,11 @@ class DocumentController extends Controller
     {
         Gate::authorize('viewAny', Document::class);
 
-        $query = Document::with(['project', 'creator', 'activeVersion']);
-
-        if ($request->user()->role !== 'admin') {
-            $query
-                ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%nda%'])
-                ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%rahasia%'])
-                ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%nda%'])
-                ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%rahasia%']);
-        }
-
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('document_number', 'like', "%{$search}%")
-                  ->orWhere('document_name', 'like', "%{$search}%")
-                  ->orWhere('partner', 'like', "%{$search}%");
-            });
-        }
-
-        if ($request->has('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->has('document_type')) {
-            $query->where('document_type', $request->document_type);
-        }
-
-        $documents = $query->latest()->paginate(15);
+        $documents = $this->documents->paginateForUser(
+            $request->user(),
+            $request->only(['search', 'status', 'document_type']),
+            15
+        );
 
         return DocumentResource::collection($documents)->additional([
             'success' => true,
@@ -120,20 +97,17 @@ class DocumentController extends Controller
     {
         Gate::authorize('viewTrash', Document::class);
 
-        $documents = Document::onlyTrashed()
-            ->with(['project', 'creator', 'activeVersion'])
-            ->latest('deleted_at')
-            ->get();
-
-        return DocumentResource::collection($documents);
+        return DocumentResource::collection(
+            $this->documents->trashed(100)
+        );
     }
 
     public function restore(Request $request, string $id)
     {
-        $document = Document::onlyTrashed()->findOrFail($id);
+        $document = $this->documents->findOnlyTrashed($id);
         Gate::authorize('restore', $document);
 
-        $document->restore();
+        $this->documents->restore($document);
 
         return response()->json([
             'success' => true,
@@ -143,7 +117,6 @@ class DocumentController extends Controller
             ),
         ]);
     }
-
 
     public function store(StoreDocumentRequest $request)
     {
@@ -155,7 +128,7 @@ class DocumentController extends Controller
         $path = null;
 
         try {
-            $document = DB::transaction(function () use (
+            $document = $this->documents->transaction(function () use (
                 $validated, $request, $file, &$path
             ) {
                 $effectiveDate = $validated['effective_date']
@@ -167,7 +140,7 @@ class DocumentController extends Controller
                     $validated['status'] ?? null
                 );
 
-                $document = Document::create([
+                $document = $this->documents->create([
                     'document_number' => $validated['document_number'],
                     'document_name' => $validated['document_name'],
                     'document_type' => $validated['document_type'],
@@ -220,7 +193,7 @@ class DocumentController extends Controller
                     throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
                 }
 
-                DocumentVersion::create([
+                $this->versions->create([
                     'document_id' => $document->id,
                     'version_number' => 'v1.0',
                     'file_path' => $path,
@@ -245,7 +218,7 @@ class DocumentController extends Controller
                 ),
             ], 201);
         } catch (\Throwable $e) {
-            // Rollback database ditangani otomatis oleh DB::transaction().
+            // Rollback database ditangani otomatis oleh transaksi repository.
             // File bukan bagian dari transaksi database, jadi bersihkan secara manual.
             if ($path && Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
@@ -263,14 +236,13 @@ class DocumentController extends Controller
         }
     }
 
-
     public function show(string $id)
     {
-        $document = Document::with([
+        $document = $this->documents->findWithRelations($id, [
             'project',
             'creator',
             'versions.uploader',
-        ])->findOrFail($id);
+        ]);
 
         // Pastikan policy dokumen benar-benar diberlakukan.
         Gate::authorize('view', $document);
@@ -291,8 +263,7 @@ class DocumentController extends Controller
             && Carbon::parse($document->expiry_date)->isPast()
             && in_array($document->status, ['active', 'draft'], true)
         ) {
-            $document->status = 'expired';
-            $document->save();
+            $this->documents->update($document, ['status' => 'expired']);
             $document->refresh();
             $document->load(['project', 'creator', 'versions.uploader']);
         }
@@ -306,9 +277,7 @@ class DocumentController extends Controller
      */
     public function metadata(string $id)
     {
-        $document = Document::query()
-            ->select(['id', 'document_name', 'description'])
-            ->findOrFail($id);
+        $document = $this->documents->findForMetadata($id);
 
         Gate::authorize('view', $document);
 
@@ -324,11 +293,10 @@ class DocumentController extends Controller
 
     public function preview(Request $request, string $id)
     {
-        $document = Document::with('versions')->findOrFail($id);
+        $document = $this->documents->findWithRelations($id, ['versions']);
         Gate::authorize('view', $document);
 
         try {
-            
             $user = $request->user();
             if ($user) {
                 \App\Models\ActivityLog::record(
@@ -339,18 +307,17 @@ class DocumentController extends Controller
                 );
             }
 
-            $versionId = $request->query('version_id');
-            
-            $version = $versionId 
-                ? $document->versions()->where('id', $versionId)->firstOrFail() 
-                : $document->versions()->where('is_current', true)->first() ?? $document->versions()->latest()->first();
+            $version = $this->versions->findCurrentOrLatest(
+                $document,
+                $this->requestedVersionId($request)
+            );
 
             if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
             $payload = Storage::disk('private_encrypted')->get($version->file_path);
-            
+
             $encryptionKey = config('app.key');
             if (str_starts_with($encryptionKey, 'base64:')) {
                 $encryptionKey = base64_decode(substr($encryptionKey, 7));
@@ -382,7 +349,7 @@ class DocumentController extends Controller
 
     public function download(Request $request, string $id)
     {
-        $document = Document::with('versions')->findOrFail($id);
+        $document = $this->documents->findWithRelations($id, ['versions']);
         Gate::authorize('download', $document);
 
         try {
@@ -397,18 +364,17 @@ class DocumentController extends Controller
                 );
             }
 
-            $versionId = $request->query('version_id');
-            
-            $version = $versionId 
-                ? $document->versions()->where('id', $versionId)->firstOrFail() 
-                : $document->versions()->where('is_current', true)->first() ?? $document->versions()->latest()->first();
+            $version = $this->versions->findCurrentOrLatest(
+                $document,
+                $this->requestedVersionId($request)
+            );
 
             if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
             $payload = Storage::disk('private_encrypted')->get($version->file_path);
-            
+
             $encryptionKey = config('app.key');
             if (str_starts_with($encryptionKey, 'base64:')) {
                 $encryptionKey = base64_decode(substr($encryptionKey, 7));
@@ -438,24 +404,23 @@ class DocumentController extends Controller
         }
     }
 
-
     public function update(UpdateDocumentRequest $request, string $id)
     {
-        $document = Document::findOrFail($id);
+        $document = $this->documents->findOrFail($id);
         Gate::authorize('update', $document);
 
         $validated = $request->validated();
 
         $startDate = $validated['document_date'] ?? $validated['effective_date'] ?? $document->document_date;
         $expiryDate = $validated['expiry_date'] ?? $document->expiry_date;
-        
+
         // Ambil status manual yang dikirim dari form edit
         $requestedStatus = $validated['status'] ?? $request->input('status') ?? $document->status;
-        
+
         // Evaluasi status dengan memprioritaskan pilihan manual pengguna saat update
         $validated['status'] = $this->determineStatus($startDate, $expiryDate, $requestedStatus);
 
-        $document->update($validated);
+        $this->documents->update($document, $validated);
 
         return response()->json([
             'success' => true,
@@ -464,17 +429,16 @@ class DocumentController extends Controller
         ]);
     }
 
-
     public function destroy(Request $request, string $id)
     {
-        $document = Document::with('versions')->findOrFail($id);
+        $document = $this->documents->findWithRelations($id, ['versions']);
 
         Gate::authorize('delete', $document);
 
         try {
-            DB::transaction(function () use ($document) {
+            $this->documents->transaction(function () use ($document) {
                 // Soft delete tidak menghapus file fisik atau riwayat versi.
-                $document->delete();
+                $this->documents->delete($document);
             });
 
             return response()->json([
@@ -493,5 +457,15 @@ class DocumentController extends Controller
                 'message' => 'Gagal menghapus dokumen.',
             ], 500);
         }
+    }
+
+    /**
+     * Ambil ID versi dari query string secara aman.
+     */
+    private function requestedVersionId(Request $request): ?string
+    {
+        $versionId = $request->query('version_id');
+
+        return is_string($versionId) && $versionId !== '' ? $versionId : null;
     }
 }

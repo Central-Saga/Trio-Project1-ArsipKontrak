@@ -3,26 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Document;
-use App\Models\DocumentVersion;
-use App\Http\Resources\DocumentVersionResource;
 use App\Http\Requests\StoreDocumentVersionRequest;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Http\Resources\DocumentVersionResource;
+use App\Repositories\Contracts\DocumentRepositoryInterface;
+use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentVersionController extends Controller
 {
+    public function __construct(
+        private DocumentRepositoryInterface $documents,
+        private DocumentVersionRepositoryInterface $versions
+    ) {
+    }
+
     /**
      * Tampilkan daftar versi untuk suatu dokumen.
      */
     public function index(string $documentId)
     {
-        $document = Document::findOrFail($documentId);
+        $document = $this->documents->findOrFail($documentId);
         Gate::authorize('view', $document);
 
-        $versions = $document->versions()->with('uploader')->latest()->get();
+        $versions = $this->versions->forDocument($document, 100);
 
         return DocumentVersionResource::collection($versions)->additional([
             'success' => true,
@@ -33,10 +37,9 @@ class DocumentVersionController extends Controller
     /**
      * Unggah versi baru / adendum untuk dokumen yang sudah ada.
      */
-
     public function store(StoreDocumentVersionRequest $request, string $documentId)
     {
-        $document = Document::findOrFail($documentId);
+        $document = $this->documents->findOrFail($documentId);
         $validated = $request->validated();
 
         Gate::authorize('update', $document);
@@ -45,7 +48,7 @@ class DocumentVersionController extends Controller
         $path = null;
 
         try {
-            $version = DB::transaction(function () use (
+            $version = $this->versions->transaction(function () use (
                 $document, $validated, $file, $request, &$path
             ) {
                 $content = file_get_contents($file->getRealPath());
@@ -82,17 +85,17 @@ class DocumentVersionController extends Controller
                     throw new \RuntimeException('File terenkripsi gagal disimpan.');
                 }
 
-                $document->versions()->update(['is_current' => false]);
+                $this->versions->markAllNotCurrent($document);
 
                 $hash = hash_file('sha256', $file->getRealPath());
                 if ($hash === false) {
                     throw new \RuntimeException('Hash SHA-256 gagal dihitung.');
                 }
 
-                return DocumentVersion::create([
+                return $this->versions->create([
                     'document_id' => $document->id,
                     'version_number' => $validated['version_number']
-                        ?? 'v' . ($document->versions()->count() + 1) . '.0',
+                        ?? 'v' . ($this->versions->countForDocument($document) + 1) . '.0',
                     'file_path' => $path,
                     'file_name' => $file->getClientOriginalName(),
                     'file_size' => $file->getSize(),
@@ -132,17 +135,17 @@ class DocumentVersionController extends Controller
      */
     public function download(string $documentId, string $versionId)
     {
-        $document = Document::findOrFail($documentId);
+        $document = $this->documents->findOrFail($documentId);
         Gate::authorize('view', $document);
 
-        $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
+        $version = $this->versions->findForDocumentOrFail($documentId, $versionId);
 
         if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
         $encryptedPayload = base64_decode(Storage::disk('private_encrypted')->get($version->file_path));
-        
+
         $ivLength = openssl_cipher_iv_length('aes-256-cbc');
         $iv = substr($encryptedPayload, 0, $ivLength);
         $encryptedContent = substr($encryptedPayload, $ivLength);
@@ -158,19 +161,20 @@ class DocumentVersionController extends Controller
             echo $decryptedContent;
         }, $version->file_name);
     }
+
     public function preview(string $documentId, string $versionId)
     {
-        $document = Document::findOrFail($documentId);
+        $document = $this->documents->findOrFail($documentId);
         Gate::authorize('view', $document);
 
-        $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
+        $version = $this->versions->findForDocumentOrFail($documentId, $versionId);
 
         if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
         $encryptedPayload = base64_decode(Storage::disk('private_encrypted')->get($version->file_path));
-        
+
         $ivLength = openssl_cipher_iv_length('aes-256-cbc');
         $iv = substr($encryptedPayload, 0, $ivLength);
         $encryptedContent = substr($encryptedPayload, $ivLength);
