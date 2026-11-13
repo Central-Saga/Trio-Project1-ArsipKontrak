@@ -58,17 +58,17 @@ class StoreDocumentRequest extends FormRequest
                 'required',
                 'string',
                 'max:100',
+                // The unique index keeps document numbers reserved after soft deletion.
                 Rule::unique('documents', 'document_number'),
             ],
-            'document_name' => ['required', 'string', 'max:255'],
+            'document_name' => ['required', 'string', 'max:200'],
             'document_type' => [
                 'required',
                 Rule::in([
-                    'contract', 'mou', 'adendum', 'addendum',
-                    'agreement', 'supporting', 'other',
+                    'contract', 'mou', 'adendum', 'agreement', 'supporting',
                 ]),
             ],
-            'partner' => ['required', 'string', 'max:255'],
+            'partner' => ['required', 'string', 'max:150'],
             'document_date' => ['required', 'date'],
             'effective_date' => ['nullable', 'date'],
             'expiry_date' => [
@@ -82,6 +82,7 @@ class StoreDocumentRequest extends FormRequest
             ],
             'description' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
+            'version_number' => ['nullable', 'string', 'max:20'],
             'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
         ];
     }

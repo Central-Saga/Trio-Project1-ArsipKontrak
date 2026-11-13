@@ -11,6 +11,7 @@ use App\Services\DocumentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -176,6 +177,10 @@ class ServiceDomainTest extends TestCase
 
     public function test_creating_same_user_twice_with_idempotency_key_creates_one_user(): void
     {
+        Http::fake([
+            'https://api.pwnedpasswords.com/range/*' => Http::response('', 200),
+        ]);
+
         $admin = User::factory()->create(['role' => 'admin']);
 
         $payload = [
