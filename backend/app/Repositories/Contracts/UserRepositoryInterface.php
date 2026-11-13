@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Contracts;
 
+use App\DTO\UserListQueryData;
 use App\Models\User;
 use Closure;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -9,7 +10,7 @@ use Illuminate\Support\Collection;
 
 interface UserRepositoryInterface
 {
-    public function paginate(int $perPage = 50): LengthAwarePaginator;
+    public function paginateForAdmin(UserListQueryData $query): LengthAwarePaginator;
 
     public function findByEmail(string $email): ?User;
 
@@ -18,6 +19,8 @@ interface UserRepositoryInterface
     public function pluckIds(): Collection;
 
     public function lockActiveAdmins(): Collection;
+
+    public function find(string $id): User;
 
     public function findForUpdate(string $id): User;
 

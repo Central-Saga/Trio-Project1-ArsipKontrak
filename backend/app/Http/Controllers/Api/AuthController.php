@@ -2,61 +2,46 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\LoginData;
 use App\Http\Controllers\Controller;
-use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Http\Requests\LoginRequest;
+use App\Http\Resources\LoginResource;
+use App\Http\Resources\UserResource;
+use App\Services\AuthService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private UserRepositoryInterface $users)
+    public function __construct(private AuthService $authService) {}
+
+    public function login(LoginRequest $request)
     {
-    }
+        $validated = $request->validated();
 
-    public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
-        $user = $this->users->findByEmail($request->email);
-
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Kredensial yang diberikan tidak cocok dengan data kami.'],
-            ]);
-        }
-        // PENCATATAN LOG LOGIN DI SINI
-        \App\Models\ActivityLog::record(
-            userId: $user->id,
-            action: 'LOGIN',
-            description: "Pengguna {$user->name} ({$user->role}) berhasil masuk ke sistem."
+        $result = $this->authService->login(
+            new LoginData(
+                email: (string) $validated['email'],
+                password: (string) $validated['password'],
+            )
         );
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'Bearer',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ],
-        ]);
+        return response()->json(
+            (new LoginResource($result))->resolve($request)
+        );
     }
 
     public function me(Request $request)
     {
-        return response()->json($request->user());
+        $user = $this->authService->profile($request->user());
+
+        return response()->json(
+            (new UserResource($user))->resolve($request)
+        );
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        $this->authService->logout($request->user());
 
         return response()->json([
             'message' => 'Berhasil keluar (logout)',

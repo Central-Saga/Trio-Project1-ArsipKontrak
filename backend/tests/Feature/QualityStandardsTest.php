@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Repositories\Contracts\ActivityLogRepositoryInterface;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
+use App\Repositories\Contracts\ProjectRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\File;
@@ -39,9 +41,11 @@ class QualityStandardsTest extends TestCase
         );
 
         foreach ([
+            ActivityLogRepositoryInterface::class,
             DocumentRepositoryInterface::class,
             DocumentVersionRepositoryInterface::class,
             NotificationRepositoryInterface::class,
+            ProjectRepositoryInterface::class,
             UserRepositoryInterface::class,
         ] as $contract) {
             $this->assertInstanceOf(

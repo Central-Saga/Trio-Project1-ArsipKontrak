@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Document;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -99,8 +98,7 @@ class StoreDocumentRequest extends FormRequest
             'partner.required' => 'Pihak mitra wajib diisi.',
             'document_date.required' => 'Tanggal dokumen wajib diisi.',
             'expiry_date.required' => 'Tanggal kedaluwarsa wajib diisi.',
-            'expiry_date.after_or_equal' =>
-                'Tanggal kedaluwarsa harus sama atau setelah tanggal dokumen.',
+            'expiry_date.after_or_equal' => 'Tanggal kedaluwarsa harus sama atau setelah tanggal dokumen.',
             'file.required' => 'Berkas PDF dokumen wajib diunggah.',
             'file.mimes' => 'Berkas dokumen harus berupa PDF.',
             'file.max' => 'Ukuran berkas PDF maksimal 20 MB.',

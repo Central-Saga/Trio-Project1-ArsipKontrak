@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Contracts;
 
+use App\DTO\DocumentListQueryData;
 use App\Models\Document;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -13,9 +14,9 @@ interface DocumentRepositoryInterface
 {
     public function statistics(): array;
 
-    public function paginateForUser(?User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator;
+    public function paginateForUser(?User $user, DocumentListQueryData $query): LengthAwarePaginator;
 
-    public function trashed(int $limit = 100): Collection;
+    public function trashed(DocumentListQueryData $query): Collection;
 
     public function findOrFail(string $id): Document;
 
