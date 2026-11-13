@@ -17,6 +17,25 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
   app:
     build:
       context: ./backend
@@ -37,11 +56,22 @@ services:
       DB_DATABASE: ${POSTGRES_DB:-sistem_arsip}
       DB_USERNAME: ${POSTGRES_USER:-saga}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+      # Cache memakai Redis sebagai primary dan database sebagai fallback.
+      # Driver "failover" membuat request tetap terlayani saat Redis mati.
+      CACHE_STORE: ${CACHE_STORE:-failover}
+      REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # Resolver singkat agar kegagalan Redis terdeteksi cepat saat cache failover.
+      RES_OPTIONS: "timeout:1 attempts:1"
     volumes:
       - laravel_runtime:/runtime
     depends_on:
       db:
         condition: service_healthy
+    # Sengaja tidak bergantung pada Redis: cache harus fail-open. Jika Redis
+    # tidak tersedia, aplikasi tetap start dan cache memakai database.
     ports:
       - "127.0.0.1:8001:80"
     healthcheck:
@@ -79,6 +109,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   laravel_runtime:
     driver: local

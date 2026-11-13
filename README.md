@@ -22,6 +22,7 @@ SAGA adalah aplikasi web untuk membantu pengelolaan arsip kontrak, Memorandum of
 - **UI library:** React 19.2.8.
 - **Bahasa frontend:** TypeScript 5.x.
 - **Database:** PostgreSQL.
+- **Cache:** Redis 7 dengan fallback ke database.
 - **Containerization:** Docker dan Docker Compose v2.
 
 > Versi setiap teknologi mengikuti konfigurasi yang digunakan dalam repository ini. Periksa `backend/composer.json`, `frontend/package.json`, dan `compose.yaml` untuk mengetahui versi yang tepat.
@@ -161,6 +162,21 @@ docker compose logs --tail=100 frontend
 ```bash
 docker compose exec app php artisan migrate:status
 ```
+
+### Cache dan Redis
+
+Docker Compose menjalankan layanan `redis` dengan healthcheck. Backend memakai driver cache `failover`: Redis sebagai penyimpanan utama dan database sebagai cadangan. Jika Redis berhenti, request tetap dilayani dengan cache database (fail-open), lalu kembali memakai Redis saat layanan tersedia lagi.
+
+Antrian tetap memakai database (`QUEUE_CONNECTION=database`). Jika job gagal dimasukkan ke antrian, proses akan menghasilkan error dan tidak dianggap berhasil (fail-closed), sehingga tidak ada job yang hilang secara diam-diam.
+
+Periksa kesehatan Redis dengan:
+
+```bash
+docker compose ps redis
+docker compose exec redis redis-cli ping
+```
+
+Respons `PONG` menandakan Redis siap digunakan.
 
 ### Menghentikan layanan
 

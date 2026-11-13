@@ -15,6 +15,7 @@ FROM php:8.4-apache-bookworm
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        $PHPIZE_DEPS \
         curl \
         git \
         unzip \
@@ -33,6 +34,8 @@ RUN apt-get update \
         pgsql \
         zip \
         gd \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && a2enmod rewrite \
     && sed -ri 's!/var/www/html!/var/www/public!g' \
         /etc/apache2/sites-available/000-default.conf \

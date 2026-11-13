@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use RuntimeException;
 use Tests\TestCase;
@@ -162,8 +161,6 @@ class ApiContractTest extends TestCase
 
     public function test_login_is_throttled_and_returns_standard_error_envelope(): void
     {
-        Cache::flush();
-
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $this->postJson('/api/v1/login', [
                 'email' => 'rate-limit-test@example.com',
