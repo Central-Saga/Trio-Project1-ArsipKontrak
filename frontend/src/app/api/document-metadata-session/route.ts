@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 const COOKIE_NAME = "document_metadata_token";
-const COOKIE_PATH = "/documents";
+const COOKIE_PATHS = ["/documents", "/profile"] as const;
 
 function isSameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -13,12 +13,12 @@ function isSameOrigin(request: Request): boolean {
   return origin === new URL(request.url).origin;
 }
 
-function cookieOptions() {
+function cookieOptions(path: (typeof COOKIE_PATHS)[number]) {
   return {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    path: COOKIE_PATH,
+    path,
     maxAge: 60 * 60 * 24 * 30,
   };
 }
@@ -64,7 +64,9 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ success: true });
-  response.cookies.set(COOKIE_NAME, token, cookieOptions());
+  for (const path of COOKIE_PATHS) {
+    response.cookies.set(COOKIE_NAME, token, cookieOptions(path));
+  }
   response.headers.set("Cache-Control", "no-store");
 
   return response;
@@ -79,11 +81,12 @@ export async function DELETE(request: Request) {
   }
 
   const response = NextResponse.json({ success: true });
-
-  response.cookies.set(COOKIE_NAME, "", {
-    ...cookieOptions(),
-    maxAge: 0,
-  });
+  for (const path of COOKIE_PATHS) {
+    response.cookies.set(COOKIE_NAME, "", {
+      ...cookieOptions(path),
+      maxAge: 0,
+    });
+  }
 
   response.headers.set("Cache-Control", "no-store");
 

@@ -1,5 +1,6 @@
 "use client";
 
+import axios from "axios";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Lock, Mail, Eye, EyeOff } from "lucide-react";
@@ -25,32 +26,40 @@ export default function LoginPage() {
       const token = data.token || data.access_token;
       const user = data.user;
 
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("auth_token", token);
-
-        // Sinkronkan sesi untuk kebutuhan metadata server.
-        // Login tetap dapat digunakan jika sinkronisasi ini gagal.
-        try {
-          await fetch("/api/document-metadata-session", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token }),
-          });
-        } catch {
-          // Metadata akan memakai judul cadangan sampai sesi tersedia.
-        }
+      if (!token) {
+        throw new Error("Token sesi tidak tersedia. Silakan coba masuk lagi.");
       }
+
+      const sessionResponse = await fetch("/api/document-metadata-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token }),
+      });
+
+      if (!sessionResponse.ok) {
+        throw new Error("Gagal menyiapkan sesi server. Silakan coba lagi.");
+      }
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("auth_token", token);
       if (user) {
         localStorage.setItem("user", JSON.stringify(user));
         localStorage.setItem("user_data", JSON.stringify(user));
       }
 
       router.push("/");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Email atau kata sandi salah.");
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        setError(err.response?.data?.message || "Email atau kata sandi salah.");
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Email atau kata sandi salah.",
+        );
+      }
     } finally {
       setLoading(false);
     }
