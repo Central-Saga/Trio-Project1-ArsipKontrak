@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Contracts;
 
+use App\DTO\DocumentVersionListQueryData;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use Closure;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface DocumentVersionRepositoryInterface
 {
-    public function forDocument(Document $document, int $limit = 100): Collection;
+    public function forDocument(Document $document, DocumentVersionListQueryData $query): Collection;
 
     public function countForDocument(Document $document): int;
 

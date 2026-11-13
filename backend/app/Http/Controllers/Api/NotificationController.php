@@ -2,48 +2,45 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\NotificationListQueryData;
 use App\Http\Controllers\Controller;
-use App\Repositories\Contracts\NotificationRepositoryInterface;
+use App\Http\Requests\IndexNotificationRequest;
+use App\Http\Resources\NotificationResource;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class NotificationController extends Controller
 {
-    public function __construct(
-        private NotificationRepositoryInterface $notifications
-    ) {
-    }
+    public function __construct(private NotificationService $notificationService) {}
 
     /**
      * Mengambil notifikasi milik user yang sedang login.
      * Endpoint ini hanya membaca data; sinkronisasi dilakukan oleh command terjadwal.
      */
-    public function index(Request $request)
+    public function index(IndexNotificationRequest $request)
     {
-        $userId = $request->user()->id;
-
-        $notifications = $this->notifications->recentForUser($userId, 50);
-
-        $unreadCount = $this->notifications->unreadCountForUser($userId);
+        $data = $this->notificationService->listForUser(
+            (int) $request->user()->id,
+            NotificationListQueryData::fromValidated($request->validated())
+        );
 
         return response()->json([
-            'notifications' => $notifications,
-            'unread_count' => $unreadCount,
+            'notifications' => NotificationResource::collection(
+                $data->notifications
+            )->resolve($request),
+            'unread_count' => $data->unreadCount,
         ]);
     }
 
     /**
      * Menandai satu notifikasi milik user sebagai sudah dibaca.
      */
-    public function markAsRead(Request $request, $id)
+    public function markAsRead(Request $request, string $id)
     {
-        $notification = $this->notifications->findForUserOrFail(
-            $request->user()->id,
+        $this->notificationService->markAsRead(
+            (int) $request->user()->id,
             $id
         );
-
-        $notification->update([
-            'read_at' => now(),
-        ]);
 
         return response()->json([
             'message' => 'Notifikasi ditandai sudah dibaca.',
@@ -55,7 +52,7 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request)
     {
-        $this->notifications->markAllAsReadForUser($request->user()->id);
+        $this->notificationService->markAllAsRead((int) $request->user()->id);
 
         return response()->json([
             'message' => 'Semua notifikasi ditandai sudah dibaca.',

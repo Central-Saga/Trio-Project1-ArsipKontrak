@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\CreateUserData;
+use App\DTO\UserListQueryData;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\IndexUserRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Resources\UserResource;
-use App\Models\ActivityLog;
 use App\Models\User;
-use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\UserService;
 use Illuminate\Support\Facades\Gate;
 
 class UserController extends Controller
 {
-    public function __construct(private UserRepositoryInterface $users)
-    {
-    }
+    public function __construct(private UserService $userService) {}
 
-    public function index()
+    public function index(IndexUserRequest $request)
     {
         Gate::authorize('viewAny', User::class);
 
         return UserResource::collection(
-            $this->users->paginate(50)
+            $this->userService->listUsers(
+                UserListQueryData::fromValidated($request->validated())
+            )
         )->additional([
             'success' => true,
             'message' => 'Daftar pengguna berhasil diambil.',
@@ -30,15 +32,11 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request)
     {
-        $validated = $request->validated();
-        $user = $this->users->create($validated);
+        Gate::authorize('create', User::class);
 
-        ActivityLog::record(
-            $request->user()->id,
-            'TAMBAH_PENGGUNA',
-            'Admin ' . $request->user()->name
-                . ' berhasil menambahkan pengguna baru: '
-                . $user->name . ' (' . $user->role . ')'
+        $user = $this->userService->create(
+            CreateUserData::fromValidated($request->validated()),
+            $request->user()
         );
 
         return (new UserResource($user))->additional([
@@ -50,44 +48,11 @@ class UserController extends Controller
     public function destroy(string $id)
     {
         $actor = auth()->user();
+        $target = $this->userService->find($id);
 
-        $this->users->transaction(function () use ($id, $actor): void {
-            /*
-             * Kunci semua admin aktif dalam urutan ID yang konsisten.
-             * Ini menserialisasi penghapusan user agar dua request bersamaan
-             * tidak dapat menghapus seluruh admin aktif.
-             */
-            $activeAdmins = $this->users->lockActiveAdmins();
+        Gate::authorize('delete', $target);
 
-            // Ambil dan kunci target setelah lock admin aktif didapatkan.
-            $target = $this->users->findForUpdate($id);
-
-            // Policy menolak non-admin dan penghapusan akun sendiri.
-            Gate::authorize('delete', $target);
-
-            // Sistem harus selalu menyisakan minimal satu admin aktif.
-            if (
-                $target->role === 'admin'
-                && $target->status === 'active'
-                && $activeAdmins->count() <= 1
-            ) {
-                abort(
-                    403,
-                    'Tidak dapat menghapus admin aktif terakhir.'
-                );
-            }
-
-            $userName = $target->name;
-
-            $this->users->delete($target);
-
-            // Catat audit di transaksi yang sama dengan penghapusan.
-            ActivityLog::record(
-                $actor->id,
-                'HAPUS_PENGGUNA',
-                'Admin ' . $actor->name . ' menghapus pengguna: ' . $userName
-            );
-        });
+        $this->userService->delete($id, $actor);
 
         return response()->json([
             'success' => true,

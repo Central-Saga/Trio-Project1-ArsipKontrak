@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\DTO\UserListQueryData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Closure;
@@ -11,9 +12,28 @@ use Illuminate\Support\Facades\DB;
 
 class UserRepository implements UserRepositoryInterface
 {
-    public function paginate(int $perPage = 50): LengthAwarePaginator
+    public function paginateForAdmin(UserListQueryData $query): LengthAwarePaginator
     {
-        return User::query()->orderBy('id')->paginate($perPage);
+        $builder = User::query();
+
+        if ($query->search !== null) {
+            $builder->where(function ($inner) use ($query): void {
+                $inner->where('name', 'like', "%{$query->search}%")
+                    ->orWhere('email', 'like', "%{$query->search}%");
+            });
+        }
+
+        if ($query->role !== null) {
+            $builder->where('role', $query->role);
+        }
+
+        if ($query->status !== null) {
+            $builder->where('status', $query->status);
+        }
+
+        return $builder
+            ->orderBy($query->sort, $query->direction)
+            ->paginate($query->perPage);
     }
 
     public function findByEmail(string $email): ?User
@@ -39,6 +59,11 @@ class UserRepository implements UserRepositoryInterface
             ->orderBy('id')
             ->lockForUpdate()
             ->pluck('id');
+    }
+
+    public function find(string $id): User
+    {
+        return User::query()->findOrFail($id);
     }
 
     public function findForUpdate(string $id): User

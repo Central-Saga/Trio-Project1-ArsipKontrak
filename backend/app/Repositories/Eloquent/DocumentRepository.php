@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\DTO\DocumentListQueryData;
 use App\Models\Document;
 use App\Models\User;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
@@ -36,44 +37,45 @@ class DocumentRepository implements DocumentRepositoryInterface
         ];
     }
 
-    public function paginateForUser(?User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    public function paginateForUser(?User $user, DocumentListQueryData $query): LengthAwarePaginator
     {
-        $query = Document::query()->with(['project', 'creator', 'activeVersion']);
+        $builder = Document::query()->with(['project', 'creator', 'activeVersion']);
 
         if ($user?->role !== 'admin') {
-            $query
+            $builder
                 ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%nda%'])
                 ->whereRaw("LOWER(COALESCE(document_name, '')) NOT LIKE ?", ['%rahasia%'])
                 ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%nda%'])
                 ->whereRaw("LOWER(COALESCE(description, '')) NOT LIKE ?", ['%rahasia%']);
         }
 
-        if (! empty($filters['search'])) {
-            $search = $filters['search'];
-            $query->where(function ($builder) use ($search): void {
-                $builder->where('document_number', 'like', "%{$search}%")
-                    ->orWhere('document_name', 'like', "%{$search}%")
-                    ->orWhere('partner', 'like', "%{$search}%");
+        if ($query->search !== null) {
+            $builder->where(function ($inner) use ($query): void {
+                $inner->where('document_number', 'like', "%{$query->search}%")
+                    ->orWhere('document_name', 'like', "%{$query->search}%")
+                    ->orWhere('partner', 'like', "%{$query->search}%");
             });
         }
 
-        if (! empty($filters['status'])) {
-            $query->where('status', $filters['status']);
+        if ($query->status !== null) {
+            $builder->where('status', $query->status);
         }
 
-        if (! empty($filters['document_type'])) {
-            $query->where('document_type', $filters['document_type']);
+        if ($query->documentType !== null) {
+            $builder->where('document_type', $query->documentType);
         }
 
-        return $query->latest()->paginate($perPage);
+        return $builder
+            ->orderBy($query->sort, $query->direction)
+            ->paginate($query->perPage);
     }
 
-    public function trashed(int $limit = 100): Collection
+    public function trashed(DocumentListQueryData $query): Collection
     {
         return Document::onlyTrashed()
             ->with(['project', 'creator', 'activeVersion'])
-            ->latest('deleted_at')
-            ->limit($limit)
+            ->orderBy($query->sort, $query->direction)
+            ->limit($query->perPage)
             ->get();
     }
 

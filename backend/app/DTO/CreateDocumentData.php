@@ -19,7 +19,7 @@ final readonly class CreateDocumentData
         public string $documentDate,
         public string $effectiveDate,
         public string $expiryDate,
-        public string $status,
+        public ?string $status = null,
         public ?string $description = null,
         public string $versionNumber = 'v1.0',
         public string $notes = 'Dokumen awal diunggah.',
@@ -30,7 +30,7 @@ final readonly class CreateDocumentData
      *
      * @param  array<string, mixed>  $validated
      */
-    public static function fromValidated(array $validated, string $status): self
+    public static function fromValidated(array $validated): self
     {
         return new self(
             projectId: (int) $validated['project_id'],
@@ -41,7 +41,7 @@ final readonly class CreateDocumentData
             documentDate: (string) $validated['document_date'],
             effectiveDate: (string) ($validated['effective_date'] ?? $validated['document_date']),
             expiryDate: (string) $validated['expiry_date'],
-            status: $status,
+            status: isset($validated['status']) ? (string) $validated['status'] : null,
             description: isset($validated['description']) ? (string) $validated['description'] : null,
             versionNumber: (string) ($validated['version_number'] ?? 'v1.0'),
             notes: (string) ($validated['notes'] ?? 'Dokumen awal diunggah.'),

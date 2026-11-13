@@ -2,19 +2,30 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\DTO\NotificationListQueryData;
 use App\Models\Notification;
 use App\Repositories\Contracts\NotificationRepositoryInterface;
 use Illuminate\Database\Eloquent\Collection;
 
 class NotificationRepository implements NotificationRepositoryInterface
 {
-    public function recentForUser(int $userId, int $limit = 50): Collection
+    public function forUser(int $userId, NotificationListQueryData $query): Collection
     {
-        return Notification::query()
+        $builder = Notification::query()
             ->where('recipient_user_id', $userId)
-            ->with('document')
-            ->orderByDesc('created_at')
-            ->limit($limit)
+            ->with('document');
+
+        if ($query->type !== null) {
+            $builder->where('type', $query->type);
+        }
+
+        if ($query->unreadOnly) {
+            $builder->whereNull('read_at');
+        }
+
+        return $builder
+            ->orderBy($query->sort, $query->direction)
+            ->limit($query->perPage)
             ->get();
     }
 
@@ -31,6 +42,13 @@ class NotificationRepository implements NotificationRepositoryInterface
         return Notification::query()
             ->where('recipient_user_id', $userId)
             ->findOrFail($id);
+    }
+
+    public function markAsRead(Notification $notification): bool
+    {
+        return $notification->update([
+            'read_at' => now(),
+        ]);
     }
 
     public function markAllAsReadForUser(int $userId): int
