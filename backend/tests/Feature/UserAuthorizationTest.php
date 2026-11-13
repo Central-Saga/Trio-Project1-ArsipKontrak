@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class UserAuthorizationTest extends TestCase
@@ -78,6 +79,10 @@ class UserAuthorizationTest extends TestCase
 
     public function test_admin_can_create_user_without_returning_password(): void
     {
+        Http::fake([
+            'https://api.pwnedpasswords.com/range/*' => Http::response('', 200),
+        ]);
+
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin, 'sanctum')
@@ -102,6 +107,50 @@ class UserAuthorizationTest extends TestCase
         $this->assertTrue(
             Hash::check('password-rahasia', $createdUser->password)
         );
+    }
+
+    public function test_admin_cannot_create_user_with_password_shorter_than_eight_characters(): void
+    {
+        Http::fake([
+            'https://api.pwnedpasswords.com/range/*' => Http::response('', 200),
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/users', [
+                'name' => 'Password Pendek',
+                'email' => 'password.pendek@example.test',
+                'password' => 'short',
+                'role' => 'viewer',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
+    }
+
+    public function test_admin_cannot_create_user_with_a_compromised_password(): void
+    {
+        $password = 'compromised-password-123';
+        $hashSuffix = strtoupper(substr(sha1($password), 5));
+
+        Http::fake([
+            'https://api.pwnedpasswords.com/range/*' => Http::response(
+                "{$hashSuffix}:1\n",
+                200,
+            ),
+        ]);
+
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/v1/admin/users', [
+                'name' => 'Password Bocor',
+                'email' => 'password.bocor@example.test',
+                'password' => $password,
+                'role' => 'viewer',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
     }
 
     public function test_admin_user_creation_validates_required_fields(): void

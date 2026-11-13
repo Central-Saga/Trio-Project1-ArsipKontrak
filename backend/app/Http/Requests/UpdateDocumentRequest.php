@@ -80,18 +80,18 @@ class UpdateDocumentRequest extends FormRequest
                 'required',
                 'string',
                 'max:100',
+                // The unique index keeps document numbers reserved after soft deletion.
                 Rule::unique('documents', 'document_number')->ignore($documentId),
             ],
-            'document_name' => ['sometimes', 'required', 'string', 'max:255'],
+            'document_name' => ['sometimes', 'required', 'string', 'max:200'],
             'document_type' => [
                 'sometimes',
                 'required',
                 Rule::in([
-                    'contract', 'mou', 'adendum', 'addendum',
-                    'agreement', 'supporting', 'other',
+                    'contract', 'mou', 'adendum', 'agreement', 'supporting',
                 ]),
             ],
-            'partner' => ['sometimes', 'required', 'string', 'max:255'],
+            'partner' => ['sometimes', 'required', 'string', 'max:150'],
             'document_date' => ['sometimes', 'required', 'date'],
             'effective_date' => ['sometimes', 'nullable', 'date'],
             'expiry_date' => ['sometimes', 'required', 'date'],

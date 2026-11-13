@@ -57,7 +57,8 @@ class StoreDocumentVersionRequest extends FormRequest
                 'string',
                 'max:20',
                 Rule::unique('document_versions', 'version_number')
-                    ->where(fn ($query) => $query->where('document_id', $documentId)),
+                    ->where(fn ($query) => $query->where('document_id', $documentId))
+                    ->withoutTrashed(),
             ],
             'file' => ['required', 'file', 'mimes:pdf', 'max:20480'],
             'notes' => ['required', 'string', 'max:500'],
