@@ -7,17 +7,21 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\ActivityLog;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Support\Facades\Gate;
 
 class UserController extends Controller
 {
+    public function __construct(private UserRepositoryInterface $users)
+    {
+    }
+
     public function index()
     {
         Gate::authorize('viewAny', User::class);
 
         return UserResource::collection(
-            User::query()->orderBy('id')->get()
+            $this->users->paginate(50)
         )->additional([
             'success' => true,
             'message' => 'Daftar pengguna berhasil diambil.',
@@ -27,7 +31,7 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         $validated = $request->validated();
-        $user = User::create($validated);
+        $user = $this->users->create($validated);
 
         ActivityLog::record(
             $request->user()->id,
@@ -47,23 +51,16 @@ class UserController extends Controller
     {
         $actor = auth()->user();
 
-        DB::transaction(function () use ($id, $actor): void {
+        $this->users->transaction(function () use ($id, $actor): void {
             /*
              * Kunci semua admin aktif dalam urutan ID yang konsisten.
              * Ini menserialisasi penghapusan user agar dua request bersamaan
              * tidak dapat menghapus seluruh admin aktif.
              */
-            $activeAdmins = User::query()
-                ->where('role', 'admin')
-                ->where('status', 'active')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get(['id']);
+            $activeAdmins = $this->users->lockActiveAdmins();
 
             // Ambil dan kunci target setelah lock admin aktif didapatkan.
-            $target = User::query()
-                ->lockForUpdate()
-                ->findOrFail($id);
+            $target = $this->users->findForUpdate($id);
 
             // Policy menolak non-admin dan penghapusan akun sendiri.
             Gate::authorize('delete', $target);
@@ -82,7 +79,7 @@ class UserController extends Controller
 
             $userName = $target->name;
 
-            $target->delete();
+            $this->users->delete($target);
 
             // Catat audit di transaksi yang sama dengan penghapusan.
             ActivityLog::record(
