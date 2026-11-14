@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\ContractType;
 use App\Models\Project;
 use App\Models\User;
-use App\Models\ContractType;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -15,35 +15,25 @@ class InitialDataSeeder extends Seeder
         // Akun demo hanya dibuat pada lingkungan lokal dan testing.
         if (app()->environment(['local', 'testing'])) {
             // 1. Akun Admin Awal
-            User::updateOrCreate(
-                ['email' => 'admin@example.com'],
-                [
-                    'name'     => 'Administrator',
-                    'password' => Hash::make('password123'),
-                    'role'     => 'admin',
-                ]
+            $this->upsertDemoUser(
+                'admin@example.com',
+                'Administrator',
+                'admin'
             );
 
             // 1.b Akun Viewer Awal
-            User::updateOrCreate(
-                ['email' => 'viewer@example.com'],
-                [
-                    'name'     => 'Yanto',
-                    'password' => Hash::make('password123'),
-                    'role'     => 'viewer',
-                ]
+            $this->upsertDemoUser(
+                'viewer@example.com',
+                'Yanto',
+                'viewer'
             );
 
             // Tambahkan user Asep sebagai Viewer
-            User::firstOrCreate(
-                ['email' => 'asep@example.com'],
-                [
-                    'name'     => 'Asep',
-                    'password' => bcrypt('password123'),
-                    'role'     => 'viewer',
-                ]
+            $this->upsertDemoUser(
+                'asep@example.com',
+                'Asep',
+                'viewer'
             );
-
         }
 
         // 2. Proyek Awal
@@ -51,30 +41,30 @@ class InitialDataSeeder extends Seeder
             ['project_code' => 'PRJ-MOU-001'],
             [
                 'project_name' => 'Kerja Sama Digital Transformation',
-                'client'       => 'PT Mitra Usaha Mandiri',
-                'description'  => 'Proyek kerja sama strategis modernisasi sistem arsip digital.',
-                'start_date'   => now()->toDateString(),
-                'end_date'     => now()->addYear()->toDateString(),
-                'status'       => 'active',
+                'client' => 'PT Mitra Usaha Mandiri',
+                'description' => 'Proyek kerja sama strategis modernisasi sistem arsip digital.',
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->addYear()->toDateString(),
+                'status' => 'active',
             ]
         );
 
-        // 3. Master Jenis Kontrak Kerja & MoU 
+        // 3. Master Jenis Kontrak Kerja & MoU
         $contractTypes = [
             [
-                'name'        => 'PKWT (Perjanjian Kerja Waktu Tertentu)',
+                'name' => 'PKWT (Perjanjian Kerja Waktu Tertentu)',
                 'description' => 'Kontrak kerja untuk pegawai kontrak dalam jangka waktu tertentu.',
             ],
             [
-                'name'        => 'PKWTT (Perjanjian Kerja Waktu Tidak Tertentu)',
+                'name' => 'PKWTT (Perjanjian Kerja Waktu Tidak Tertentu)',
                 'description' => 'Kontrak kerja untuk pegawai tetap.',
             ],
             [
-                'name'        => 'MoU (Memorandum of Understanding)',
+                'name' => 'MoU (Memorandum of Understanding)',
                 'description' => 'Nota kesepahaman kerja sama awal antar instansi atau perusahaan.',
             ],
             [
-                'name'        => 'Kontrak Kerja Sama Vendor / Mitra',
+                'name' => 'Kontrak Kerja Sama Vendor / Mitra',
                 'description' => 'Perjanjian pengadaan barang atau jasa dengan pihak ketiga.',
             ],
         ];
@@ -96,5 +86,17 @@ class InitialDataSeeder extends Seeder
                 'description' => $type['description'],
             ]);
         }
+    }
+
+    private function upsertDemoUser(string $email, string $name, string $role): void
+    {
+        // Role tidak fillable; tetapkan eksplisit untuk data demo.
+        $user = User::firstOrNew(['email' => $email]);
+        $user->fill([
+            'name' => $name,
+            'password' => Hash::make('password123'),
+        ]);
+        $user->role = $role;
+        $user->save();
     }
 }

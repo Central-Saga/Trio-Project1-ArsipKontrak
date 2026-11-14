@@ -43,7 +43,16 @@ class UserRepository implements UserRepositoryInterface
 
     public function create(array $attributes): User
     {
-        return User::create($attributes);
+        // Role tidak fillable; tetapkan secara eksplisit setelah atribut aman
+        // lain diisi. Nilai role sudah divalidasi oleh StoreUserRequest.
+        $role = $attributes['role'] ?? 'viewer';
+        unset($attributes['role']);
+
+        $user = User::create($attributes);
+        $user->role = $role;
+        $user->save();
+
+        return $user;
     }
 
     public function pluckIds(): Collection
