@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { X, UploadCloud, FileText, Lock } from "lucide-react";
 import api from "@/lib/api";
+import { uploadVersionSchema } from "@/lib/formSchemas";
 
 interface UploadVersionModalProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export default function UploadVersionModal({
   const [successPopup, setSuccessPopup] = useState(false);
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (!isOpen) {
       setVersionNumber("v1.1");
       setNotes("");
@@ -34,25 +37,35 @@ export default function UploadVersionModal({
       setError(null);
       setSuccessPopup(false);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setError("Silakan pilih berkas PDF terlebih dahulu.");
+
+    const parsed = uploadVersionSchema.safeParse({
+      versionNumber,
+      notes,
+      file,
+    });
+
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Data versi tidak valid.");
       return;
     }
+
+    const data = parsed.data;
 
     try {
       setLoading(true);
       setError(null);
 
       const formData = new FormData();
-      formData.append("version_number", versionNumber);
-      formData.append("notes", notes);
-      formData.append("file", file);
+      formData.append("version_number", data.versionNumber);
+      formData.append("notes", data.notes);
+      formData.append("file", data.file);
 
       await api.post(`/documents/${documentId}/versions`, formData, {
         headers: {
@@ -67,8 +80,10 @@ export default function UploadVersionModal({
         onSuccess();
         onClose();
       }, 1500);
-    } catch (err: any) {
-      const errorData = err.response?.data;
+    } catch (err: unknown) {
+      const errorData = axios.isAxiosError<{ message?: string }>(err)
+        ? err.response?.data
+        : undefined;
       setError(errorData?.message || "Gagal mengunggah versi baru.");
     } finally {
       setLoading(false);
@@ -155,6 +170,7 @@ export default function UploadVersionModal({
             </label>
             <textarea
               rows={2}
+              required
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Jelaskan poin perubahan atau klausul baru..."
