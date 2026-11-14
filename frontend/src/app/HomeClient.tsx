@@ -20,22 +20,18 @@ import {
   Users,
 } from "lucide-react";
 import api from "../lib/api";
+import { getApiErrorMessage } from "../lib/apiError";
 import { DocumentItem } from "../types/document";
 import UploadDocumentModal from "../components/UploadDocumentModal";
 import NotificationBell from "@/components/NotificationBell";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useCurrentUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -89,27 +85,15 @@ export default function DashboardPage() {
 
       setDocuments(items as DocumentItem[]);
       setError(null);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Gagal memuat daftar dokumen.",
-      );
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Gagal memuat daftar dokumen."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDocuments();
   }, [fetchDocuments]);
 
@@ -127,25 +111,8 @@ export default function DashboardPage() {
   }, []);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Ignore error
-    } finally {
-      try {
-        await fetch("/api/document-metadata-session", {
-          method: "DELETE",
-        });
-      } catch {
-        // Pembersihan cookie dilakukan secara best-effort.
-      }
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   const confirmDelete = (doc: DocumentItem) => {
@@ -168,8 +135,8 @@ export default function DashboardPage() {
         setDocumentToDelete(null);
         fetchDocuments();
       }, 1500);
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Gagal menghapus dokumen.");
+    } catch (err: unknown) {
+      alert(getApiErrorMessage(err, "Gagal menghapus dokumen."));
     }
   };
 

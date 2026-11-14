@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -11,35 +10,16 @@ import {
   LogOut,
   FolderArchive,
 } from "lucide-react";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-
-  useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch {
-        setCurrentUser(null);
-      }
-    }
-  }, []);
+  const { user: currentUser } = useCurrentUser();
 
   const handleLogout = async () => {
-    localStorage.removeItem("user_data");
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+    await logout();
     router.push("/login");
   };
 

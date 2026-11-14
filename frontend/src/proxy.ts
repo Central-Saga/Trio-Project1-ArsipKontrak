@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-
-const COOKIE_NAME = "document_metadata_token";
+import {
+  SESSION_COOKIE_NAME,
+  getApiBaseUrl,
+} from "@/lib/sessionCookie";
 
 function redirectToLogin(request: NextRequest) {
   const loginUrl = request.nextUrl.clone();
@@ -11,19 +13,13 @@ function redirectToLogin(request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
-  const token = request.cookies.get(COOKIE_NAME)?.value;
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
 
   if (!token) {
     return redirectToLogin(request);
   }
 
-  const apiBaseUrl = (
-    process.env.API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "http://127.0.0.1:8000/api/v1"
-  ).replace(/\/+$/, "");
-
-  const response = await fetch(`${apiBaseUrl}/me`, {
+  const response = await fetch(`${getApiBaseUrl()}/me`, {
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${token}`,
