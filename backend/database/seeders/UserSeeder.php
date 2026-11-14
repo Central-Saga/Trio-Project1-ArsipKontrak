@@ -12,6 +12,7 @@ class UserSeeder extends Seeder
     {
         if (! app()->environment(['local', 'testing'])) {
             $this->command?->warn('UserSeeder dilewati: hanya untuk local/testing.');
+
             return;
         }
 
@@ -43,10 +44,14 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($users as $data) {
-            User::updateOrCreate(
-                ['email' => $data['email']],
-                $data
-            );
+            $role = $data['role'];
+            unset($data['role']);
+
+            // Role tidak fillable; tetapkan eksplisit untuk data seeder.
+            $user = User::firstOrNew(['email' => $data['email']]);
+            $user->fill($data);
+            $user->role = $role;
+            $user->save();
         }
     }
 }
