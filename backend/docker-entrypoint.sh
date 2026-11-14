@@ -21,10 +21,12 @@ fi
 
 php artisan config:clear
 
-# Tunggu database siap melalui depends_on healthcheck,
-# kemudian terapkan migrasi sebelum Apache dimulai.
-php artisan migrate --force
-
 chown -R www-data:www-data storage bootstrap/cache
+
+# Migrasi dijalankan oleh service rilis terpisah (lihat compose.yaml),
+# bukan oleh setiap replika aplikasi.
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+fi
 
 exec apache2-foreground
