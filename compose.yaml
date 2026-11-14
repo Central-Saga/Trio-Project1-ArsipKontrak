@@ -36,6 +36,46 @@ services:
       retries: 10
       start_period: 5s
 
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: "no"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB:-sistem_arsip}
+      DB_USERNAME: ${POSTGRES_USER:-saga}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+      # Migrasi memakai Redis untuk lock terdistribusi (--isolated).
+      CACHE_STORE: redis
+      REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - laravel_runtime:/runtime
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - php
+      - artisan
+      - migrate
+      - --force
+      - --isolated
+
   app:
     build:
       context: ./backend
@@ -70,6 +110,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     # Sengaja tidak bergantung pada Redis: cache harus fail-open. Jika Redis
     # tidak tersedia, aplikasi tetap start dan cache memakai database.
     ports:
