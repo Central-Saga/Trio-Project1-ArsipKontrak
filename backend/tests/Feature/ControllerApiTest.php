@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Document;
 use App\Models\Project;
 use App\Models\User;
+use Closure;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class ControllerApiTest extends TestCase
@@ -164,6 +166,23 @@ class ControllerApiTest extends TestCase
                 $forbidden,
                 $routes,
                 "routes/api.php tidak boleh memakai {$forbidden}; gunakan controller/service."
+            );
+        }
+    }
+
+    public function test_all_application_routes_use_controller_actions_instead_of_closures(): void
+    {
+        foreach (Route::getRoutes() as $route) {
+            // Route bawaan framework (health check dan storage lokal) memang
+            // memakai closure dan bukan bagian dari routes/api.php atau web.php.
+            if ($route->uri() === 'up' || str_starts_with($route->uri(), 'storage/')) {
+                continue;
+            }
+
+            $this->assertNotInstanceOf(
+                Closure::class,
+                $route->getAction('uses'),
+                "Route {$route->uri()} masih memakai closure; gunakan controller agar route dapat di-cache."
             );
         }
     }
