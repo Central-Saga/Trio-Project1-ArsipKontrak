@@ -1,9 +1,27 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Save, Lock } from "lucide-react";
 import api from "../../../../lib/api";
+import { editDocumentSchema } from "@/lib/formSchemas";
+
+type DocumentRecord = {
+  project_id?: number;
+  document_name?: string;
+  document_number?: string;
+  document_type?: string;
+  partner?: string;
+  document_date?: string;
+  expiry_date?: string;
+  description?: string;
+  status?: string;
+};
+
+type DocumentDetailResponse = {
+  data?: DocumentRecord;
+};
 
 export default function EditDocumentPage() {
   const router = useRouter();
@@ -26,23 +44,17 @@ export default function EditDocumentPage() {
   // State untuk popup sukses
   const [successPopup, setSuccessPopup] = useState(false);
 
-  // Ambil tanggal hari ini berdasarkan waktu lokal perangkat (Format: YYYY-MM-DD)
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayStr = getLocalDateString();
-
   useEffect(() => {
     if (id) {
       api
-        .get(`/documents/${id}`)
-        .then((res: any) => {
+        .get<DocumentDetailResponse>(`/documents/${id}`)
+        .then((res) => {
           const doc = res.data.data;
+
+          if (!doc) {
+            throw new Error("Data dokumen tidak tersedia.");
+          }
+
           setProjectId(doc.project_id || 1);
           setTitle(doc.document_name || "");
           setDocumentNumber(doc.document_number || "");
@@ -65,35 +77,38 @@ export default function EditDocumentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validasi ketat tanggal masa lalu saat submit
-    if (documentDate < todayStr) {
-      setError(
-        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
-      );
+    const parsed = editDocumentSchema.safeParse({
+      projectId,
+      title,
+      documentType,
+      partner,
+      documentDate,
+      expiryDate,
+      status,
+      description,
+    });
+
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Data dokumen tidak valid.");
       return;
     }
 
-    if (expiryDate < documentDate || expiryDate < todayStr) {
-      setError(
-        "Tanggal berakhir tidak valid atau mendahului hari ini/tanggal mulai.",
-      );
-      return;
-    }
+    const data = parsed.data;
 
     try {
       setSaving(true);
       setError(null);
 
       await api.put(`/documents/${id}`, {
-        project_id: projectId,
-        document_name: title,
-        document_type: documentType,
-        partner: partner,
-        document_date: documentDate,
-        effective_date: documentDate,
-        expiry_date: expiryDate,
-        status: status,
-        description: description,
+        project_id: data.projectId,
+        document_name: data.title,
+        document_type: data.documentType,
+        partner: data.partner,
+        document_date: data.documentDate,
+        effective_date: data.documentDate,
+        expiry_date: data.expiryDate,
+        status: data.status,
+        description: data.description ?? "",
       });
 
       // Tampilkan popup sukses yang compact, lalu pindah halaman
@@ -102,8 +117,14 @@ export default function EditDocumentPage() {
         setSuccessPopup(false);
         router.push("/");
       }, 1500);
-    } catch (err: any) {
-      const errorData = err.response?.data;
+    } catch (err: unknown) {
+      const errorData = axios.isAxiosError<{
+        errors?: Record<string, string[]>;
+        message?: string;
+      }>(err)
+        ? err.response?.data
+        : undefined;
+
       if (errorData?.errors) {
         const firstKey = Object.keys(errorData.errors)[0];
         setError(errorData.errors[firstKey][0]);
@@ -256,19 +277,8 @@ export default function EditDocumentPage() {
                 <input
                   type="date"
                   required
-                  min={todayStr}
                   value={documentDate}
-                  onChange={(e) => {
-                    const selectedDate = e.target.value;
-                    if (selectedDate < todayStr) {
-                      setError(
-                        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
-                      );
-                    } else {
-                      setError(null);
-                      setDocumentDate(selectedDate);
-                    }
-                  }}
+                  onChange={(e) => setDocumentDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
@@ -280,22 +290,9 @@ export default function EditDocumentPage() {
                 <input
                   type="date"
                   required
-                  min={documentDate || todayStr}
+                  min={documentDate || undefined}
                   value={expiryDate}
-                  onChange={(e) => {
-                    const selectedDate = e.target.value;
-                    if (
-                      selectedDate < todayStr ||
-                      (documentDate && selectedDate < documentDate)
-                    ) {
-                      setError(
-                        "Tanggal berakhir tidak valid atau mendahului tanggal mulai.",
-                      );
-                    } else {
-                      setError(null);
-                      setExpiryDate(selectedDate);
-                    }
-                  }}
+                  onChange={(e) => setExpiryDate(e.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
