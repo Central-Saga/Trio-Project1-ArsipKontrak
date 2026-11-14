@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import api from "@/lib/api";
+import { getSafeRedirectPath } from "@/lib/safeRedirect";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,7 +50,11 @@ export default function LoginPage() {
         localStorage.setItem("user_data", JSON.stringify(user));
       }
 
-      router.push("/");
+      const nextPath = new URLSearchParams(window.location.search).get(
+        "next",
+      );
+      router.replace(getSafeRedirectPath(nextPath));
+      router.refresh();
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
         setError(err.response?.data?.message || "Email atau kata sandi salah.");
