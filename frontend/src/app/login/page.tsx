@@ -4,7 +4,7 @@ import axios from "axios";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Lock, Mail, Eye, EyeOff } from "lucide-react";
-import api from "@/lib/api";
+import { login } from "@/lib/sessionClient";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
 
 export default function LoginPage() {
@@ -21,33 +21,10 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await api.post("/login", { email, password });
-      const data = response.data;
+      const user = await login(email, password);
 
-      const token = data.token || data.access_token;
-      const user = data.user;
-
-      if (!token) {
-        throw new Error("Token sesi tidak tersedia. Silakan coba masuk lagi.");
-      }
-
-      const sessionResponse = await fetch("/api/document-metadata-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token }),
-      });
-
-      if (!sessionResponse.ok) {
-        throw new Error("Gagal menyiapkan sesi server. Silakan coba lagi.");
-      }
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("auth_token", token);
-      if (user) {
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("user_data", JSON.stringify(user));
+      if (!user) {
+        throw new Error("Data pengguna tidak tersedia. Silakan coba masuk lagi.");
       }
 
       const nextPath = new URLSearchParams(window.location.search).get(

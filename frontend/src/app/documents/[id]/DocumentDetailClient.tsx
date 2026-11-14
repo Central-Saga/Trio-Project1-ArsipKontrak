@@ -1,10 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Download, FileText, Lock, Plus } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
 import UploadVersionModal from "@/components/UploadVersionModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface VersionItem {
   id: number;
@@ -33,17 +36,11 @@ interface DocumentDetail {
   versions: VersionItem[];
 }
 
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function DocumentDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id;
+  const { user } = useCurrentUser();
 
   const [docDetail, setDocDetail] = useState<DocumentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,22 +49,9 @@ export default function DocumentDetailPage() {
     null,
   );
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
-  const [user, setUser] = useState<CurrentUser | null>(null);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-
-  useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
-  }, []);
 
   const fetchDetail = useCallback(async () => {
     if (!id) return;
@@ -83,14 +67,15 @@ export default function DocumentDetailPage() {
         setSelectedVersionId(docData.versions[0].id);
       }
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat detail dokumen.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Gagal memuat detail dokumen."));
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDetail();
   }, [fetchDetail]);
 
@@ -147,11 +132,14 @@ export default function DocumentDetailPage() {
       window.document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err: any) {
-      if (err.response?.data instanceof Blob) {
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.data instanceof Blob) {
         err.response.data.text().then((text: string) => {
           try {
-            const errorJson = JSON.parse(text);
+            const errorJson = JSON.parse(text) as {
+              message?: string;
+              error?: string;
+            };
             alert(
               `Gagal Unduh: ${errorJson.message || errorJson.error || "Kesalahan server"}`,
             );
@@ -160,9 +148,7 @@ export default function DocumentDetailPage() {
           }
         });
       } else {
-        alert(
-          err.response?.data?.message || "Gagal mengunduh berkas terenkripsi.",
-        );
+        alert(getApiErrorMessage(err, "Gagal mengunduh berkas terenkripsi."));
       }
     }
   };

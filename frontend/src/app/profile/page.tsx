@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import axios from "axios";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, KeyRound, LogOut, Mail, ShieldCheck, UserCircle } from "lucide-react";
 import api from "@/lib/api";
+import { logout, updateSessionUser } from "@/lib/sessionClient";
 
 interface CurrentUser {
   id: number;
@@ -20,16 +22,6 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("auth_token");
-
-    if (!token) {
-      setError("Sesi login tidak ditemukan. Silakan masuk kembali.");
-      setLoading(false);
-      router.replace("/login");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -41,45 +33,34 @@ export default function ProfilePage() {
         throw new Error("Format data profil dari server tidak valid.");
       }
 
-      setUser(profile as CurrentUser);
-      localStorage.setItem("user", JSON.stringify(profile));
-      localStorage.setItem("user_data", JSON.stringify(profile));
-    } catch (requestError: any) {
+      const currentUser = profile as CurrentUser;
+      setUser(currentUser);
+      updateSessionUser(currentUser);
+    } catch (requestError: unknown) {
+      const message = axios.isAxiosError<{ message?: string }>(requestError)
+        ? requestError.response?.data?.message
+        : undefined;
+
       setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Gagal memuat profil dari server.",
+        message ||
+          (requestError instanceof Error
+            ? requestError.message
+            : "Gagal memuat profil dari server."),
       );
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadProfile();
   }, [loadProfile]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    try {
-      await api.post("/logout");
-    } catch {
-      // Storage tetap dibersihkan jika request logout gagal.
-    } finally {
-      try {
-        await fetch("/api/document-metadata-session", {
-          method: "DELETE",
-        });
-      } catch {
-        // Pembersihan cookie dilakukan secara best-effort.
-      }
-
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   if (loading) {
