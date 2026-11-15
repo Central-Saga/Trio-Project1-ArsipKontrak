@@ -29,6 +29,7 @@ return new class extends Migration
             $table->index('document_type');
         });
     }
+
     /**
      * Reverse the migrations.
      */

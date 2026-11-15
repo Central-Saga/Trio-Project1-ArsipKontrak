@@ -21,6 +21,21 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(ApiErrorResponse::class);
 
+        // Hormati X-Forwarded-* hanya dari proxy yang dikonfigurasi. Di balik
+        // reverse proxy/load balancer, daftarkan alamat proxy lewat env.
+        $trustedProxies = env('TRUSTED_PROXIES', '127.0.0.1,::1');
+        $trustedProxies = is_string($trustedProxies)
+            ? array_values(array_filter(array_map('trim', explode(',', $trustedProxies))))
+            : $trustedProxies;
+
+        $middleware->trustProxies(
+            at: $trustedProxies,
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO,
+        );
+
         $middleware->alias([
             'idempotent' => EnsureIdempotentRequest::class,
         ]);

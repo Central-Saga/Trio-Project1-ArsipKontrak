@@ -85,8 +85,17 @@ jobs:
       - name: Generate application key
         run: php artisan key:generate --force
 
-      - name: Run database migrations
-        run: php artisan migrate --force
+      - name: Verify migrations are reversible
+        run: |
+          php artisan migrate:fresh --force
+          php artisan migrate:rollback --force
+          php artisan migrate --force
+
+      - name: Run Pint
+        run: composer lint
+
+      - name: Run Larastan
+        run: composer analyse
 
       - name: Run backend tests
         run: php artisan test
