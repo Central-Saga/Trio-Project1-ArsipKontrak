@@ -19,6 +19,10 @@ const LEGACY_AUTH_KEYS = ["token", "auth_token", "user", "user_data"] as const;
 
 let snapshot: SessionSnapshot = SERVER_SNAPSHOT;
 let pendingRequest: Promise<CurrentUser | null> | null = null;
+let pendingRequestId: symbol | null = null;
+// Setiap login/logout menaikkan versi. Response async dari sesi lama yang
+// datang terlambat tidak boleh menimpa state pengguna baru.
+let sessionVersion = 0;
 const listeners = new Set<() => void>();
 
 const sessionApi = axios.create({
@@ -91,42 +95,75 @@ export async function loadCurrentUser(
     return pendingRequest;
   }
 
-  pendingRequest = sessionApi
+  const version = sessionVersion;
+  const requestId = Symbol("session-request");
+
+  const request = sessionApi
     .get("")
     .then(({ data }) => {
+      // Abaikan response yang sudah basi, misalnya ketika user logout atau
+      // login dengan akun lain saat request ini masih berjalan.
+      if (version !== sessionVersion) {
+        return null;
+      }
+
       const user = toCurrentUser(data?.user);
       publish({ user, loading: false });
 
       return user;
     })
     .catch(() => {
-      publish({ user: null, loading: false });
+      if (version === sessionVersion) {
+        publish({ user: null, loading: false });
+      }
 
       return null;
     })
     .finally(() => {
-      pendingRequest = null;
+      if (pendingRequestId === requestId) {
+        pendingRequest = null;
+        pendingRequestId = null;
+      }
     });
 
-  return pendingRequest;
+  pendingRequest = request;
+  pendingRequestId = requestId;
+
+  return request;
 }
 
 export async function login(
   email: string,
   password: string,
 ): Promise<CurrentUser | null> {
+  // Naikkan versi dan batalkan request sesi lama sebelum login baru dimulai.
+  const version = ++sessionVersion;
+  pendingRequest = null;
+  pendingRequestId = null;
+
   const { data } = await sessionApi.post("", { email, password });
   const user = toCurrentUser(data?.user);
 
   // Bersihkan token lama dari versi aplikasi sebelumnya agar tidak tertinggal
   // di localStorage pengguna.
   clearLegacyAuthStorage();
+
+  if (version !== sessionVersion) {
+    return null;
+  }
+
   publish({ user, loading: false });
 
   return user;
 }
 
 export async function logout(): Promise<void> {
+  // Invalidate request sesi yang masih berjalan agar response-nya tidak
+  // mengembalikan data pengguna lama setelah logout.
+  sessionVersion += 1;
+  pendingRequest = null;
+  pendingRequestId = null;
+
   try {
     // Route handler mencabut token di backend lalu menghapus cookie httpOnly.
     await sessionApi.delete("");
@@ -139,6 +176,11 @@ export async function logout(): Promise<void> {
 }
 
 export function updateSessionUser(user: CurrentUser): void {
+  // Update lokal harus menang atas request sesi yang masih berjalan.
+  sessionVersion += 1;
+  pendingRequest = null;
+  pendingRequestId = null;
+
   publish({ user, loading: false });
 }
 
