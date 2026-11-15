@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\Document;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateDocumentRequest extends FormRequest
 {
@@ -104,12 +105,36 @@ class UpdateDocumentRequest extends FormRequest
         ];
     }
 
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $document = $this->routeDocument();
+                $documentDate = $this->input('document_date')
+                    ?? $document?->document_date?->toDateString();
+                $expiryDate = $this->input('expiry_date');
+
+                if (
+                    is_string($documentDate)
+                    && is_string($expiryDate)
+                    && $expiryDate < $documentDate
+                ) {
+                    $validator->errors()->add(
+                        'expiry_date',
+                        'Tanggal kedaluwarsa harus sama atau setelah tanggal dokumen.'
+                    );
+                }
+            },
+        ];
+    }
+
     public function messages(): array
     {
         return [
             'document_number.unique' => 'Nomor dokumen sudah terdaftar.',
             'document_name.required' => 'Nama dokumen wajib diisi.',
             'document_type.in' => 'Jenis dokumen tidak valid.',
+            'expiry_date.after_or_equal' => 'Tanggal kedaluwarsa harus sama atau setelah tanggal dokumen.',
         ];
     }
 }
