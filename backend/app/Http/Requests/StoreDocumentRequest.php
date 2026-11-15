@@ -58,8 +58,9 @@ class StoreDocumentRequest extends FormRequest
                 'required',
                 'string',
                 'max:100',
-                // The unique index keeps document numbers reserved after soft deletion.
-                Rule::unique('documents', 'document_number'),
+                // Hanya dokumen aktif yang dihitung; nomor boleh dipakai lagi
+                // setelah dokumen lama di-soft-delete.
+                Rule::unique('documents', 'document_number')->whereNull('deleted_at'),
             ],
             'document_name' => ['required', 'string', 'max:200'],
             'document_type' => [

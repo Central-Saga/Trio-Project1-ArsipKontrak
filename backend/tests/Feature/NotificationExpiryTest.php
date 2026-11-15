@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
-use App\Models\Notification;
 use App\Models\Project;
 use App\Models\User;
 use Carbon\Carbon;
@@ -124,7 +123,7 @@ class NotificationExpiryTest extends TestCase
         return Document::create([
             'project_id' => $this->project->id,
             'document_number' => $documentNumber,
-            'document_name' => 'Dokumen ' . $documentNumber,
+            'document_name' => 'Dokumen '.$documentNumber,
             'document_type' => 'contract',
             'partner' => 'PT Mitra Pengujian',
             'document_date' => Carbon::today()->subDays(60)->toDateString(),

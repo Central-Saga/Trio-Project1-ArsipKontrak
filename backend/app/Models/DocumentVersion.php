@@ -9,9 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+/**
+ * @property-read Document $document
+ * @property-read User|null $uploader
+ */
 class DocumentVersion extends Model implements HasMedia
 {
-    use HasFactory, SoftDeletes, InteractsWithMedia;
+    use HasFactory, InteractsWithMedia, SoftDeletes;
 
     protected $fillable = [
         'document_id',
@@ -28,13 +32,13 @@ class DocumentVersion extends Model implements HasMedia
     ];
 
     protected $casts = [
-        'document_id'  => 'integer',
+        'document_id' => 'integer',
         'version_number' => 'string',
-        'uploaded_by'  => 'integer',
-        'file_size'    => 'integer',
-        'is_current'   => 'boolean',
+        'uploaded_by' => 'integer',
+        'file_size' => 'integer',
+        'is_current' => 'boolean',
         'encrypted_at' => 'datetime',
-        'deleted_at'   => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function document(): BelongsTo

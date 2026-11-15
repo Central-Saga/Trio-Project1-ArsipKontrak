@@ -19,7 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->date('start_date');
             $table->date('end_date')->nullable();
-            $table->enum('status', ['draft', 'active', 'completed','archived'])->default('draft');
+            $table->enum('status', ['draft', 'active', 'completed', 'archived'])->default('draft');
             $table->softDeletes();
             $table->timestamps();
         });

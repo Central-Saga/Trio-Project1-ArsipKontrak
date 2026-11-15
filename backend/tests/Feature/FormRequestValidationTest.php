@@ -15,7 +15,7 @@ class FormRequestValidationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_document_number_stays_reserved_after_soft_delete(): void
+    public function test_document_number_can_be_reused_after_soft_delete(): void
     {
         Storage::fake('private_encrypted');
 
@@ -43,8 +43,15 @@ class FormRequestValidationTest extends TestCase
                     'application/pdf'
                 ),
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('document_number');
+            ->assertCreated()
+            ->assertJsonPath('data.document_number', $trashedDocument->document_number);
+
+        $secondTrashedDocument = $this->createDocument(
+            $project,
+            $admin,
+            'CTR/2026/TRASHED/002'
+        );
+        $secondTrashedDocument->delete();
 
         $activeDocument = $this->createDocument(
             $project,
@@ -54,10 +61,10 @@ class FormRequestValidationTest extends TestCase
 
         $this->putJson(
             "/api/v1/documents/{$activeDocument->id}",
-            ['document_number' => $trashedDocument->document_number]
+            ['document_number' => $secondTrashedDocument->document_number]
         )
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('document_number');
+            ->assertOk()
+            ->assertJsonPath('data.document_number', $secondTrashedDocument->document_number);
     }
 
     public function test_soft_deleted_version_number_can_be_reused(): void

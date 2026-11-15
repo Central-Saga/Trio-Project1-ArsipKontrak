@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Document;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -81,8 +82,11 @@ class UpdateDocumentRequest extends FormRequest
                 'required',
                 'string',
                 'max:100',
-                // The unique index keeps document numbers reserved after soft deletion.
-                Rule::unique('documents', 'document_number')->ignore($documentId),
+                // Hanya dokumen aktif yang dihitung; nomor boleh dipakai lagi
+                // setelah dokumen lama di-soft-delete.
+                Rule::unique('documents', 'document_number')
+                    ->ignore($documentId)
+                    ->whereNull('deleted_at'),
             ],
             'document_name' => ['sometimes', 'required', 'string', 'max:200'],
             'document_type' => [
@@ -110,8 +114,12 @@ class UpdateDocumentRequest extends FormRequest
         return [
             function (Validator $validator): void {
                 $document = $this->routeDocument();
-                $documentDate = $this->input('document_date')
-                    ?? $document?->document_date?->toDateString();
+                $documentDate = $this->input('document_date');
+
+                if ($documentDate === null && $document?->document_date !== null) {
+                    $documentDate = CarbonImmutable::parse($document->document_date)->toDateString();
+                }
+
                 $expiryDate = $this->input('expiry_date');
 
                 if (

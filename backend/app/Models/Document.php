@@ -2,13 +2,25 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property-read Project|null $project
+ * @property-read User|null $creator
+ * @property-read DocumentVersion|null $latestVersion
+ * @property-read DocumentVersion|null $activeVersion
+ * @property-read Collection<int, DocumentVersion> $versions
+ * @property-read Carbon|null $document_date
+ * @property-read Carbon|null $effective_date
+ * @property-read Carbon|null $expiry_date
+ */
 class Document extends Model
 {
     use HasFactory, SoftDeletes;
@@ -38,14 +50,14 @@ class Document extends Model
     protected function casts(): array
     {
         return [
-            'project_id'     => 'integer',
-            'created_by'     => 'integer',
-            'document_date'  => 'date',
+            'project_id' => 'integer',
+            'created_by' => 'integer',
+            'document_date' => 'date',
             'effective_date' => 'date',
-            'expiry_date'    => 'date',
-            'start_date'     => 'date',
+            'expiry_date' => 'date',
+            'start_date' => 'date',
             'contract_value' => 'decimal:2',
-            'is_active'      => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -66,12 +78,12 @@ class Document extends Model
 
             // Jika tanggal efektif lebih besar dari hari ini (mulai besok/masa depan)
             if ($document->effective_date && $document->effective_date->toDateString() > $today) {
-                $document->status = 'draft'; 
-            } 
+                $document->status = 'draft';
+            }
             // Jika tanggal kedaluwarsa sudah lewat dari hari ini
             elseif ($document->expiry_date && $document->expiry_date->toDateString() < $today) {
                 $document->status = 'expired';
-            } 
+            }
             // Jika berada di dalam rentang waktu yang berlaku
             else {
                 $document->status = 'active';
@@ -97,7 +109,7 @@ class Document extends Model
     /**
      * Relasi untuk mengambil versi aktif / versi terbaru dokumen.
      */
-    public function activeVersion()
+    public function activeVersion(): HasOne
     {
         return $this->hasOne(DocumentVersion::class)->latestOfMany();
     }

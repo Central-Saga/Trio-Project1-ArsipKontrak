@@ -46,7 +46,7 @@ class CheckDocumentExpirations extends Command
             &$count
         ): void {
             foreach ($chunk as $doc) {
-                if (!$doc->expiry_date) {
+                if (! $doc->expiry_date) {
                     continue;
                 }
 

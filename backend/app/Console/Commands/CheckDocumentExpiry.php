@@ -21,7 +21,7 @@ class CheckDocumentExpiry extends Command
 
         $this->info(
             'Menjalankan pemeriksaan expiry dokumen pada: '
-            . $today->toDateString()
+            .$today->toDateString()
         );
 
         // Pembaruan status dilakukan secara massal, bukan per dokumen.
@@ -39,7 +39,7 @@ class CheckDocumentExpiry extends Command
             $rows = [];
 
             foreach ($chunk as $document) {
-                if (!$document->created_by || !$document->expiry_date) {
+                if (! $document->created_by || ! $document->expiry_date) {
                     continue;
                 }
 

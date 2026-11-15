@@ -48,10 +48,12 @@ Route::prefix('v1')->group(function () {
             ->middlewareFor('store', 'idempotent');
 
         Route::get('documents/{document}/versions', [DocumentVersionController::class, 'index'])
-            ->middleware('throttle:120,1');
+            ->middleware('throttle:120,1')
+            ->scopeBindings();
         // Upload versi memakai FormRequest, Policy, dan DocumentVersionResource.
         Route::post('documents/{document}/versions', [DocumentVersionController::class, 'store'])
-            ->middleware(['throttle:30,1', 'idempotent']);
+            ->middleware(['throttle:30,1', 'idempotent'])
+            ->scopeBindings();
 
         // List Project untuk Dropdown Upload
         Route::get('/projects', [ProjectController::class, 'index'])
