@@ -16,13 +16,9 @@ import {
   Users,
 } from "lucide-react";
 import api from "@/lib/api";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { getApiErrorMessage } from "@/lib/apiError";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 interface ActivityUser {
   name: string;
@@ -40,10 +36,10 @@ interface ActivityLog {
 
 export default function ActivityLogsPage() {
   const router = useRouter();
+  const { user, loading: sessionLoading } = useCurrentUser();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -53,16 +49,16 @@ export default function ActivityLogsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
+    if (sessionLoading) {
+      return;
     }
-  }, []);
+
+    if (!user) {
+      router.replace("/login");
+    } else if (user.role !== "admin") {
+      router.replace("/");
+    }
+  }, [sessionLoading, user, router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -98,33 +94,21 @@ export default function ActivityLogsPage() {
       }
 
       setLogs(items);
-    } catch (requestError: any) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Gagal memuat log aktivitas.",
-      );
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, "Gagal memuat log aktivitas."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchLogs();
   }, [fetchLogs]);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   const openLogDetail = (log: ActivityLog) => {

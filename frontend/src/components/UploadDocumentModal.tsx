@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import axios from "axios";
 import { X, UploadCloud, FileText, Lock } from "lucide-react";
 import api from "@/lib/api";
+import { uploadDocumentSchema } from "@/lib/formSchemas";
 
 interface UploadDocumentModalProps {
   isOpen: boolean;
@@ -32,18 +34,8 @@ export default function UploadDocumentModal({
   // State untuk popup sukses
   const [successPopup, setSuccessPopup] = useState(false);
 
-  // Ambil tanggal hari ini berdasarkan waktu lokal perangkat (Format: YYYY-MM-DD)
-  const getLocalDateString = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  };
-
-  const todayStr = getLocalDateString();
-
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (isOpen) {
       const now = new Date();
       const romanMonths = [
@@ -68,6 +60,7 @@ export default function UploadDocumentModal({
       setError(null);
       setSuccessPopup(false);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -75,63 +68,62 @@ export default function UploadDocumentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validasi ketat tanggal masa lalu saat submit
-    if (startDate < todayStr) {
-      setError(
-        "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
-      );
+    const parsed = uploadDocumentSchema.safeParse({
+      projectId,
+      title,
+      documentNumber,
+      documentType,
+      counterpartName,
+      startDate,
+      endDate,
+      description,
+      file,
+    });
+
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Data dokumen tidak valid.");
       return;
     }
 
-    if (endDate < startDate || endDate < todayStr) {
-      setError(
-        "Tanggal berakhir tidak valid atau mendahului hari ini/tanggal mulai.",
-      );
-      return;
-    }
-
-    if (!file) {
-      setError("Silakan pilih berkas PDF dokumen terlebih dahulu.");
-      return;
-    }
+    const data = parsed.data;
 
     try {
       setLoading(true);
       setError(null);
 
       const formData = new FormData();
-      formData.append("project_id", projectId.toString());
-      formData.append("title", title);
-      formData.append("document_name", title);
-      formData.append("name", title);
+      formData.append("project_id", data.projectId.toString());
+      formData.append("title", data.title);
+      formData.append("document_name", data.title);
+      formData.append("name", data.title);
 
-      formData.append("document_number", documentNumber);
-      formData.append("document_no", documentNumber);
-      formData.append("number", documentNumber);
+      formData.append("document_number", data.documentNumber);
+      formData.append("document_no", data.documentNumber);
+      formData.append("number", data.documentNumber);
 
-      formData.append("document_type", documentType);
-      formData.append("type", documentType);
+      formData.append("document_type", data.documentType);
+      formData.append("type", data.documentType);
 
-      formData.append("partner", counterpartName);
-      formData.append("counterpart_name", counterpartName);
-      formData.append("counterpart", counterpartName);
-      formData.append("partner_name", counterpartName);
+      formData.append("partner", data.counterpartName);
+      formData.append("counterpart_name", data.counterpartName);
+      formData.append("counterpart", data.counterpartName);
+      formData.append("partner_name", data.counterpartName);
 
-      formData.append("document_date", startDate);
-      formData.append("date", startDate);
-      formData.append("tanggal", startDate);
-      formData.append("start_date", startDate);
-      formData.append("effective_date", startDate);
+      formData.append("document_date", data.startDate);
+      formData.append("date", data.startDate);
+      formData.append("tanggal", data.startDate);
+      formData.append("start_date", data.startDate);
+      formData.append("effective_date", data.startDate);
 
-      formData.append("expiry_date", endDate);
-      formData.append("end_date", endDate);
-      formData.append("expired_date", endDate);
+      formData.append("expiry_date", data.endDate);
+      formData.append("end_date", data.endDate);
+      formData.append("expired_date", data.endDate);
 
-      formData.append("description", description);
-      formData.append("desc", description);
+      formData.append("description", data.description ?? "");
+      formData.append("desc", data.description ?? "");
 
-      formData.append("file", file);
-      formData.append("document_file", file);
+      formData.append("file", data.file);
+      formData.append("document_file", data.file);
 
       await api.post("/documents", formData, {
         headers: {
@@ -146,9 +138,14 @@ export default function UploadDocumentModal({
         onSuccess();
         onClose();
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error details:", err);
-      const errorData = err.response?.data;
+      const errorData = axios.isAxiosError<{
+        errors?: Record<string, string[]>;
+        message?: string;
+      }>(err)
+        ? err.response?.data
+        : undefined;
 
       if (errorData?.errors) {
         const firstKey = Object.keys(errorData.errors)[0];
@@ -156,7 +153,11 @@ export default function UploadDocumentModal({
       } else if (errorData?.message) {
         setError(errorData.message);
       } else {
-        setError(err.message || "Gagal terhubung ke server.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Gagal terhubung ke server.",
+        );
       }
     } finally {
       setLoading(false);
@@ -299,19 +300,8 @@ export default function UploadDocumentModal({
               <input
                 type="date"
                 required
-                min={todayStr}
                 value={startDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value;
-                  if (selectedDate < todayStr) {
-                    setError(
-                      "Tanggal mulai tidak boleh menggunakan tanggal yang sudah berlalu.",
-                    );
-                  } else {
-                    setError(null);
-                    setStartDate(selectedDate);
-                  }
-                }}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>
@@ -323,22 +313,9 @@ export default function UploadDocumentModal({
               <input
                 type="date"
                 required
-                min={startDate || todayStr}
+                min={startDate || undefined}
                 value={endDate}
-                onChange={(e) => {
-                  const selectedDate = e.target.value;
-                  if (
-                    selectedDate < todayStr ||
-                    (startDate && selectedDate < startDate)
-                  ) {
-                    setError(
-                      "Tanggal berakhir tidak valid atau mendahului tanggal mulai.",
-                    );
-                  } else {
-                    setError(null);
-                    setEndDate(selectedDate);
-                  }
-                }}
+                onChange={(e) => setEndDate(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
               />
             </div>

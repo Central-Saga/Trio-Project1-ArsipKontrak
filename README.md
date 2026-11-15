@@ -223,9 +223,11 @@ Mengubah password di `.env` tidak otomatis mengubah password PostgreSQL yang sud
 
 ### Frontend tidak dapat terhubung ke API
 
-Pastikan `NEXT_PUBLIC_API_BASE_URL` mengarah ke alamat API yang benar untuk lingkungan tempat frontend berjalan.
+Frontend memakai BFF (Backend for Frontend) di `/api/backend`. Route handler Next.js meneruskan request ke Laravel dan menambahkan token dari cookie `httpOnly`, sehingga token tidak pernah disimpan di `localStorage` atau dikirim ke JavaScript browser.
 
-Jika nilainya diubah, build ulang frontend agar konfigurasi baru diterapkan. Perhatikan bahwa variabel dengan awalan `NEXT_PUBLIC_` dapat dimasukkan ke bundle frontend dan bukan tempat untuk menyimpan rahasia.
+Pastikan `API_BASE_URL` (variabel server-side) mengarah ke alamat API yang benar untuk lingkungan tempat frontend berjalan. Di Docker Compose nilainya `http://app:8000/api/v1`; untuk pengembangan lokal nilainya biasanya `http://127.0.0.1:8000/api/v1`.
+
+Variabel `API_BASE_URL` hanya dibaca di server dan tidak dimasukkan ke bundle frontend.
 
 ## Penyimpanan dan Keamanan Data
 

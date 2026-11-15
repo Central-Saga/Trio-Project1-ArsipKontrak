@@ -16,17 +16,13 @@ import {
   Users,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { DocumentItem } from "@/types/document";
 import DocumentStatsChart from "@/components/DocumentStatsChart";
 import DocumentStatusPieChart from "@/components/DocumentStatusPieChart";
 import UploadDocumentModal from "@/components/UploadDocumentModal";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 interface DashboardStatistics {
   total_arsip: number;
@@ -41,9 +37,9 @@ interface DashboardStatistics {
 
 export default function StatisticsPage() {
   const router = useRouter();
+  const { user } = useCurrentUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [statistics, setStatistics] = useState<DashboardStatistics | null>(null);
-  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -66,10 +62,27 @@ export default function StatisticsPage() {
           }),
         ]);
 
-      const extractItems = (payload: any): DocumentItem[] => {
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload?.data?.data)) return payload.data.data;
-        if (Array.isArray(payload)) return payload;
+      const extractItems = (payload: unknown): DocumentItem[] => {
+        if (Array.isArray(payload)) {
+          return payload as DocumentItem[];
+        }
+
+        if (payload && typeof payload === "object") {
+          const data = (payload as { data?: unknown }).data;
+
+          if (Array.isArray(data)) {
+            return data as DocumentItem[];
+          }
+
+          if (data && typeof data === "object") {
+            const nestedData = (data as { data?: unknown }).data;
+
+            if (Array.isArray(nestedData)) {
+              return nestedData as DocumentItem[];
+            }
+          }
+        }
+
         return [];
       };
 
@@ -132,27 +145,15 @@ export default function StatisticsPage() {
         terminated: Number(statisticsData.terminated ?? 0),
       });
       setError(null);
-    } catch (err: any) {
-      setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Gagal memuat statistik arsip.",
-      );
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Gagal memuat statistik arsip."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDocuments();
   }, [fetchDocuments]);
 
@@ -182,17 +183,8 @@ export default function StatisticsPage() {
   }, [user]);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   const totalArsip = statistics?.total_arsip ?? 0;

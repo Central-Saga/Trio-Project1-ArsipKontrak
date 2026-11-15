@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
-
-const COOKIE_NAME = "document_metadata_token";
+import { SESSION_COOKIE_NAME, getApiBaseUrl } from "@/lib/sessionCookie";
 
 type MetadataResponse = {
   data?: {
@@ -33,20 +32,14 @@ export const getDocumentMetadataForRoute = cache(
   async (documentId: string): Promise<DocumentMetadataLookup> => {
     try {
       const cookieStore = await cookies();
-      const token = cookieStore.get(COOKIE_NAME)?.value;
+      const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
       if (!token) {
         return { status: "unavailable" };
       }
 
-      const apiBaseUrl = (
-        process.env.API_BASE_URL ||
-        process.env.NEXT_PUBLIC_API_BASE_URL ||
-        "http://127.0.0.1:8000/api/v1"
-      ).replace(/\/+$/, "");
-
       const endpoint =
-        `${apiBaseUrl}/documents/${encodeURIComponent(documentId)}/metadata`;
+        `${getApiBaseUrl()}/documents/${encodeURIComponent(documentId)}/metadata`;
 
       const response = await fetch(endpoint, {
         method: "GET",

@@ -20,25 +20,21 @@ import {
   Users,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { DocumentItem } from "@/types/document";
 import UploadDocumentModal from "@/components/UploadDocumentModal";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 type DocumentTab = "all" | "contract" | "mou";
 
 function ContractsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useCurrentUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [activeTab, setActiveTab] = useState<DocumentTab>("all");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [user, setUser] = useState<CurrentUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -68,9 +64,9 @@ function ContractsContent() {
               : [];
       setDocuments(items);
       setError(null);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(
-        err.response?.data?.message || "Gagal memuat dokumen kontrak dan MoU.",
+        getApiErrorMessage(err, "Gagal memuat dokumen kontrak dan MoU."),
       );
     } finally {
       setLoading(false);
@@ -93,10 +89,8 @@ function ContractsContent() {
             : [];
       setTrashedDocuments(items);
       setTrashError(null);
-    } catch (err: any) {
-      setTrashError(
-        err.response?.data?.message || "Gagal memuat arsip terhapus.",
-      );
+    } catch (err: unknown) {
+      setTrashError(getApiErrorMessage(err, "Gagal memuat arsip terhapus."));
     } finally {
       setLoadingTrash(false);
     }
@@ -110,30 +104,23 @@ function ContractsContent() {
     try {
       await api.delete(`/documents/${id}`);
       fetchDocuments();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Gagal menghapus dokumen.");
+    } catch (err: unknown) {
+      alert(getApiErrorMessage(err, "Gagal menghapus dokumen."));
     }
   };
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDocuments();
   }, [fetchDocuments]);
 
   useEffect(() => {
     const type = searchParams.get("type");
     const status = searchParams.get("status");
+    /* eslint-disable react-hooks/set-state-in-effect */
     setActiveTab(type === "contract" || type === "mou" ? type : "all");
     setStatusFilter(status || null);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [searchParams]);
 
   useEffect(() => {
@@ -204,8 +191,8 @@ function ContractsContent() {
       setRestoringId(id);
       await api.post(`/documents/${id}/restore`);
       await Promise.all([fetchDocuments(), fetchTrashedDocuments()]);
-    } catch (err: any) {
-      setTrashError(err.response?.data?.message || "Gagal memulihkan dokumen.");
+    } catch (err: unknown) {
+      setTrashError(getApiErrorMessage(err, "Gagal memulihkan dokumen."));
     } finally {
       setRestoringId(null);
     }
@@ -219,17 +206,8 @@ function ContractsContent() {
   };
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   return (

@@ -107,6 +107,29 @@ class FormRequestValidationTest extends TestCase
         );
     }
 
+    public function test_update_rejects_expiry_before_document_date(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $document = $this->createDocument(
+            $this->createProject(),
+            $admin,
+            'CTR/2026/UPDATE-DATE/001'
+        );
+
+        $this->actingAs($admin, 'sanctum')
+            ->putJson("/api/v1/documents/{$document->id}", [
+                'document_date' => '2026-09-14',
+                'expiry_date' => '2026-09-13',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('expiry_date');
+
+        $this->assertSame(
+            '2027-01-01',
+            $document->fresh()->expiry_date->toDateString()
+        );
+    }
+
     public function test_document_validation_matches_persisted_field_limits(): void
     {
         Storage::fake('private_encrypted');
