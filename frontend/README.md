@@ -30,6 +30,12 @@ For local development, copy `.env.example` to `.env.local` from the `frontend` d
 
 `NODE_ENV` is managed by Next.js (`development` for `next dev`, `production` for builds and production runtime); do not set it manually.
 
+| Environment | Configuration source |
+| --- | --- |
+| Local development | `frontend/.env.local`, copied from `.env.example`. |
+| CI | `API_BASE_URL` is scoped to the `frontend-build` job in `.github/workflows/ci.yml`. |
+| Docker Compose | `NODE_ENV` and the internal `API_BASE_URL` are set by the frontend service in `compose.yaml`. |
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
 
 interface Notification {
   id: number;
@@ -40,12 +41,8 @@ export default function NotificationBell() {
       setNotifications(items);
       setUnreadCount(Number(payload?.unread_count) || 0);
       setError(null);
-    } catch (requestError: any) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Gagal memuat notifikasi.",
-      );
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, "Gagal memuat notifikasi."));
     } finally {
       if (showLoader) {
         setLoading(false);
@@ -54,13 +51,18 @@ export default function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    void fetchNotifications(true);
+    const initialFetch = window.setTimeout(() => {
+      void fetchNotifications(true);
+    }, 0);
 
     const interval = window.setInterval(() => {
       void fetchNotifications(false);
     }, 60000);
 
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initialFetch);
+      window.clearInterval(interval);
+    };
   }, [fetchNotifications]);
 
   useEffect(() => {
@@ -83,10 +85,12 @@ export default function NotificationBell() {
     try {
       await api.post(`/notifications/${id}/read`);
       await fetchNotifications(false);
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError.response?.data?.message ||
+        getApiErrorMessage(
+          requestError,
           "Gagal menandai notifikasi sebagai dibaca.",
+        ),
       );
     }
   };
@@ -97,10 +101,12 @@ export default function NotificationBell() {
     try {
       await api.post("/notifications/read-all");
       await fetchNotifications(false);
-    } catch (requestError: any) {
+    } catch (requestError: unknown) {
       setError(
-        requestError.response?.data?.message ||
+        getApiErrorMessage(
+          requestError,
           "Gagal menandai semua notifikasi sebagai dibaca.",
+        ),
       );
     }
   };
