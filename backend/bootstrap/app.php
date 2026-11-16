@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ApiErrorResponse;
 use App\Http\Middleware\EnsureIdempotentRequest;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(ApiErrorResponse::class);
+        $middleware->append(SecurityHeaders::class);
 
         // Hormati X-Forwarded-* hanya dari proxy yang dikonfigurasi. Di balik
         // reverse proxy/load balancer, daftarkan alamat proxy lewat env.
