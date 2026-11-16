@@ -13,11 +13,12 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
     css: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: ["src/**/*.{ts,tsx}"],
+      include: ["src/lib/**/*.{ts,tsx}", "src/app/api/**/*.{ts,tsx}"],
       exclude: [
         "src/**/*.d.ts",
         "src/test/**",
@@ -27,6 +28,12 @@ export default defineConfig({
         "src/app/**/error.tsx",
         "src/app/**/not-found.tsx",
       ],
+      thresholds: {
+        lines: 60,
+        "src/app/api/session/route.ts": {
+          lines: 80,
+        },
+      },
     },
   },
 });

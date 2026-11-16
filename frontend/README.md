@@ -36,6 +36,28 @@ For local development, copy `.env.example` to `.env.local` from the `frontend` d
 | CI | `API_BASE_URL` is scoped to the `frontend-build` job in `.github/workflows/ci.yml`. |
 | Docker Compose | `NODE_ENV` and the internal `API_BASE_URL` are set by the frontend service in `compose.yaml`. |
 
+## Testing
+
+Run unit and integration tests with mocked HTTP responses through MSW:
+
+```bash
+npm test
+```
+
+Measure line coverage for frontend libraries and API route handlers. The overall threshold is 60%; the session API route has an 80% critical-path threshold:
+
+```bash
+npm run test:coverage
+```
+
+Run the end-to-end login flow against a production build. Playwright starts the app on port `3100`, and the test verifies the dashboard redirect and HttpOnly session cookie:
+
+```bash
+npm run build
+npx playwright install chromium
+npm run test:e2e
+```
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
