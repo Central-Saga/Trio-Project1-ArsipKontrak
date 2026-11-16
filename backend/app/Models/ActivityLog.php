@@ -5,8 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Request;
 
+/**
+ * @property-read User $user
+ * @property-read Document|null $document
+ * @property-read Carbon|null $created_at
+ */
 class ActivityLog extends Model
 {
     use HasFactory;
@@ -22,7 +28,7 @@ class ActivityLog extends Model
     public $timestamps = false; // Karena di migrasi kamu hanya pakai created_at manual
 
     protected $casts = [
-        'user_id'     => 'integer',
+        'user_id' => 'integer',
         'document_id' => 'integer',
     ];
 
@@ -40,11 +46,11 @@ class ActivityLog extends Model
     public static function record($userId, string $action, ?string $description = null, ?int $documentId = null)
     {
         return self::create([
-            'user_id'     => $userId,
+            'user_id' => $userId,
             'document_id' => $documentId,
-            'action'      => $action,
+            'action' => $action,
             'description' => $description,
-            'ip_address'  => Request::ip(),
+            'ip_address' => Request::ip(),
         ]);
     }
 }

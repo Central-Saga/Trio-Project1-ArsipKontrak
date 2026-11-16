@@ -1,40 +1,158 @@
-version: "3.8"
-
 services:
-    app:
-        build:
-            context: .
-            dockerfile: Dockerfile
-        container_name: saga_laravel_app
-        restart: unless-stopped
-        working_dir: /var/www
-        volumes:
-            - .:/var/www
-        environment:
-            - DB_HOST=db
-            - DB_PORT=5432
-            - DB_DATABASE=sistem_arsip
-            - DB_USERNAME=saga
-            - DB_PASSWORD=secret123
-        depends_on:
-            - db
-        ports:
-            - "8000:8000"
-        command: php artisan serve --host=0.0.0.0 --port=8000
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sistem_arsip}
+      POSTGRES_USER: ${POSTGRES_USER:-saga}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
-    db:
-        image: postgres:16-alpine
-        container_name: saga_postgres_db
-        restart: unless-stopped
-        environment:
-            POSTGRES_DB: sistem_arsip
-            POSTGRES_USER: saga
-            POSTGRES_PASSWORD: secret123
-        ports:
-            - "5432:5432"
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: "no"
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB:-sistem_arsip}
+      DB_USERNAME: ${POSTGRES_USER:-saga}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+      # Migrasi memakai Redis untuk lock terdistribusi (--isolated).
+      CACHE_STORE: redis
+      REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    volumes:
+      - laravel_runtime:/runtime
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command:
+      - php
+      - artisan
+      - migrate
+      - --force
+      - --isolated
+
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      LOG_CHANNEL: stderr
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: ${POSTGRES_DB:-sistem_arsip}
+      DB_USERNAME: ${POSTGRES_USER:-saga}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+      # Cache memakai Redis sebagai primary dan database sebagai fallback.
+      # Driver "failover" membuat request tetap terlayani saat Redis mati.
+      CACHE_STORE: ${CACHE_STORE:-failover}
+      REDIS_CLIENT: ${REDIS_CLIENT:-phpredis}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      # Resolver singkat agar kegagalan Redis terdeteksi cepat saat cache failover.
+      RES_OPTIONS: "timeout:1 attempts:1"
+    volumes:
+      - laravel_runtime:/runtime
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Sengaja tidak bergantung pada Redis: cache harus fail-open. Jika Redis
+    # tidak tersedia, aplikasi tetap start dan cache memakai database.
+    ports:
+      - "127.0.0.1:8001:80"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - curl -fsS http://127.0.0.1/up >/dev/null || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Dipakai BFF Next.js di dalam jaringan Docker. Token tetap berada
+      # di cookie httpOnly dan tidak pernah dikirim ke browser.
+      API_BASE_URL: http://app:8000/api/v1
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3001:3000"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q --spider http://127.0.0.1:3000/ || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
-    postgres_data:
-        driver: local
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  laravel_runtime:
+    driver: local

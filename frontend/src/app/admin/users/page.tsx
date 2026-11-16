@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, UserPlus, Shield, User, Mail } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface UserItem {
   id: number;
@@ -13,19 +15,12 @@ interface UserItem {
   created_at: string;
 }
 
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { user: currentUser, loading: sessionLoading } = useCurrentUser();
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   // State untuk Modal Tambah User
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,22 +40,18 @@ export default function AdminUsersPage() {
     name: string;
   } | null>(null);
 
-  // Cek hak akses admin dari localStorage
+  // Cek hak akses admin berdasarkan sesi yang diverifikasi server.
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsed = JSON.parse(storedUser);
-        setCurrentUser(parsed);
-        if (parsed.role !== "admin") {
-          router.push("/");
-        }
-      } catch {
-        setCurrentUser(null);
-      }
+    if (sessionLoading) {
+      return;
     }
-  }, [router]);
+
+    if (!currentUser) {
+      router.replace("/login");
+    } else if (currentUser.role !== "admin") {
+      router.replace("/");
+    }
+  }, [sessionLoading, currentUser, router]);
 
   // Ambil data user dari API backend
   const fetchUsers = useCallback(async () => {
@@ -69,8 +60,8 @@ export default function AdminUsersPage() {
       const res = await api.get("/admin/users");
       setUsers(res.data.data);
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat daftar pengguna.");
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Gagal memuat daftar pengguna."));
     } finally {
       setLoading(false);
     }
@@ -78,6 +69,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (currentUser?.role === "admin") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchUsers();
     }
   }, [currentUser, fetchUsers]);
@@ -92,10 +84,8 @@ export default function AdminUsersPage() {
       setIsModalOpen(false);
       setFormData({ name: "", email: "", password: "", role: "viewer" });
       fetchUsers();
-    } catch (err: any) {
-      setFormError(
-        err.response?.data?.message || "Gagal menambahkan pengguna.",
-      );
+    } catch (err: unknown) {
+      setFormError(getApiErrorMessage(err, "Gagal menambahkan pengguna."));
     } finally {
       setSubmitting(false);
     }
@@ -116,8 +106,8 @@ export default function AdminUsersPage() {
       setDeleteModalOpen(false);
       setUserToDelete(null);
       fetchUsers();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Gagal menghapus pengguna.");
+    } catch (err: unknown) {
+      alert(getApiErrorMessage(err, "Gagal menghapus pengguna."));
     }
   };
 
@@ -167,8 +157,16 @@ export default function AdminUsersPage() {
           </div>
 
           {error && (
-            <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
-              {error}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={() => void fetchUsers()}
+                disabled={loading}
+                className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+              >
+                Coba lagi
+              </button>
             </div>
           )}
 
@@ -185,7 +183,16 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white text-slate-700">
-                {users.map((u) => (
+                {users.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="px-6 py-10 text-center text-sm text-slate-500"
+                    >
+                      Belum ada pengguna untuk ditampilkan.
+                    </td>
+                  </tr>
+                ) : users.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50 transition">
                     <td className="px-6 py-4 font-semibold text-slate-900 flex items-center gap-2">
                       <User className="h-4 w-4 text-slate-400" /> {u.name}

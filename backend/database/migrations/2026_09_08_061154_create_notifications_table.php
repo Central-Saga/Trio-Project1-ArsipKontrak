@@ -15,13 +15,13 @@ return new class extends Migration
             $table->id();
             // Relasi ke dokumen terkait
             $table->foreignId('document_id')->constrained('documents')->cascadeOnDelete();
-            
+
             // Relasi ke user penerima reminder (Project Manager / Doc Controller)
             $table->foreignId('recipient_user_id')->constrained('users')->cascadeOnDelete();
-            
+
             // Tipe reminder sesuai PRD
             $table->enum('type', ['expiry_30', 'expiry_7', 'expired']);
-            
+
             $table->timestamp('sent_at')->nullable();
             $table->timestamp('read_at')->nullable();
             $table->timestamps();

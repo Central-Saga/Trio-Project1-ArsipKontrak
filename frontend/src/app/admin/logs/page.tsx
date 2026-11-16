@@ -16,13 +16,9 @@ import {
   Users,
 } from "lucide-react";
 import api from "@/lib/api";
-
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
+import { getApiErrorMessage } from "@/lib/apiError";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
 interface ActivityUser {
   name: string;
@@ -40,9 +36,10 @@ interface ActivityLog {
 
 export default function ActivityLogsPage() {
   const router = useRouter();
+  const { user, loading: sessionLoading } = useCurrentUser();
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -52,16 +49,16 @@ export default function ActivityLogsPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
+    if (sessionLoading) {
+      return;
     }
-  }, []);
+
+    if (!user) {
+      router.replace("/login");
+    } else if (user.role !== "admin") {
+      router.replace("/");
+    }
+  }, [sessionLoading, user, router]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -79,34 +76,39 @@ export default function ActivityLogsPage() {
   const fetchLogs = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
+
       const response = await api.get("/admin/activity-logs");
-      const json = response.data;
-      if (json.success) {
-        setLogs(json.data.data);
+      const payload = response.data;
+      const items = payload?.data;
+      const meta = payload?.meta;
+      const hasPagination =
+        meta &&
+        Number.isFinite(Number(meta.current_page)) &&
+        Number.isFinite(Number(meta.last_page)) &&
+        Number.isFinite(Number(meta.per_page)) &&
+        Number.isFinite(Number(meta.total));
+
+      if (!payload?.success || !Array.isArray(items) || !hasPagination) {
+        throw new Error("Format data log aktivitas dari server tidak valid.");
       }
-    } catch (error) {
-      console.error("Gagal memuat log aktivitas:", error);
+
+      setLogs(items);
+    } catch (requestError: unknown) {
+      setError(getApiErrorMessage(requestError, "Gagal memuat log aktivitas."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchLogs();
   }, [fetchLogs]);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
   const openLogDetail = (log: ActivityLog) => {
@@ -355,6 +357,22 @@ export default function ActivityLogsPage() {
                         className="px-6 py-8 text-center text-slate-500"
                       >
                         Memuat data log aktivitas...
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-6 py-8 text-center text-rose-600"
+                      >
+                        <p role="alert">{error}</p>
+                        <button
+                          type="button"
+                          onClick={() => void fetchLogs()}
+                          className="mt-3 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold hover:bg-rose-50"
+                        >
+                          Coba lagi
+                        </button>
                       </td>
                     </tr>
                   ) : logs.length === 0 ? (

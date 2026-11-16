@@ -2,87 +2,62 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\CreateUserData;
+use App\DTO\UserListQueryData;
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
+use App\Http\Requests\IndexUserRequest;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use App\Services\UserService;
+use Illuminate\Support\Facades\Gate;
 
 class UserController extends Controller
 {
-    /**
-     * Menampilkan daftar semua pengguna.
-     */
-    public function index()
+    public function __construct(private UserService $userService) {}
+
+    public function index(IndexUserRequest $request)
     {
-        $users = User::all();
-        return response()->json([
-            'status' => 'success',
-            'data' => $users
+        Gate::authorize('viewAny', User::class);
+
+        return UserResource::collection(
+            $this->userService->listUsers(
+                UserListQueryData::fromValidated($request->validated())
+            )
+        )->additional([
+            'success' => true,
+            'message' => 'Daftar pengguna berhasil diambil.',
         ]);
     }
 
-    /**
-     * Menyimpan pengguna baru ke dalam database.
-     */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,viewer',
-        ]);
+        Gate::authorize('create', User::class);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role' => $request->role,
-        ]);
-
-        // Catat log aktivitas saat admin menambah pengguna baru
-        ActivityLog::record(
-            auth()->id(),
-            'TAMBAH_PENGGUNA',
-            'Admin ' . (auth()->user()->name ?? 'Administrator') . ' berhasil menambahkan pengguna baru: ' . $user->name . ' (' . $user->role . ')'
+        $user = $this->userService->create(
+            CreateUserData::fromValidated($request->validated()),
+            $request->user()
         );
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Pengguna berhasil ditambahkan',
-            'data' => $user
-        ], 201);
+        return (new UserResource($user))->additional([
+            'success' => true,
+            'message' => 'Pengguna berhasil ditambahkan.',
+        ])->response()->setStatusCode(201);
     }
 
-    /**
-     * Menghapus pengguna berdasarkan ID.
-     */
-    public function destroy($id)
+    public function destroy(string $id)
     {
-        $user = User::findOrFail($id);
+        $actor = auth()->user();
+        $target = $this->userService->find($id);
 
-        // Mencegah admin menghapus akunnya sendiri yang sedang aktif
-        if ($user->id === auth()->id()) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Tidak dapat menghapus akun yang sedang digunakan sendiri.'
-            ], 403);
-        }
+        Gate::authorize('delete', $target);
 
-        $userName = $user->name;
-        $user->delete();
-
-        // Catat log aktivitas saat admin menghapus pengguna
-        ActivityLog::record(
-            auth()->id(),
-            'HAPUS_PENGGUNA',
-            'Admin ' . (auth()->user()->name ?? 'Administrator') . ' menghapus pengguna: ' . $userName
-        );
+        $this->userService->delete($id, $actor);
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Pengguna berhasil dihapus'
+            'success' => true,
+            'message' => 'Pengguna berhasil dihapus.',
+            'data' => null,
         ]);
     }
 }

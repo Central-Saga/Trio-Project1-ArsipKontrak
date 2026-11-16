@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use App\Models\Project;
 use App\Models\Document;
+use App\Models\Project;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -18,7 +18,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -42,22 +42,32 @@ class DocumentManagementTest extends TestCase
                 'document_name' => 'Kontrak Kerjasama Uji Coba',
                 'contract_type_id' => 1,
                 'client_id' => 1,
+                'created_by' => $user->id + 100,
                 'document_date' => '2026-09-14',
                 'effective_date' => '2026-09-14',
                 'expiry_date' => '2027-09-14',
                 'status' => 'active',
                 'description' => 'Dokumen uji coba otomatis',
+                'version_number' => 'v1.2',
                 'file' => $file,
             ]);
 
         $response->assertStatus(201);
+        $this->assertDatabaseHas('documents', [
+            'document_number' => 'CTR/2026/TEST/001',
+            'created_by' => $user->id,
+        ]);
+        $this->assertDatabaseHas('document_versions', [
+            'document_id' => $response->json('data.id'),
+            'version_number' => 'v1.2',
+        ]);
     }
 
     public function test_user_can_create_document_version()
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -89,6 +99,7 @@ class DocumentManagementTest extends TestCase
         $response = $this->withHeader('Accept', 'application/json')
             ->postJson("/api/v1/documents/{$document->id}/versions", [
                 'file' => $newFile,
+                'version_number' => 'v2.0',
                 'description' => 'Pembaruan versi dokumen ke-2',
             ]);
 
@@ -125,7 +136,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -158,12 +169,12 @@ class DocumentManagementTest extends TestCase
             ]);
 
         $response->assertStatus(201);
-        
+
         // Memastikan field hash atau checksum tersimpan di database
         $this->assertDatabaseHas('documents', [
             'document_number' => 'SUP/2026/001',
         ]);
-        
+
         $document = Document::where('document_number', 'SUP/2026/001')->first();
         if (isset($document->file_hash)) {
             $this->assertNotNull($document->file_hash);
@@ -177,7 +188,7 @@ class DocumentManagementTest extends TestCase
         // Buat dua user berbeda: Pemilik dokumen dan user lain (Staff)
         $owner = User::factory()->create();
         $staffUser = User::factory()->create();
-        
+
         // Autentikasi sebagai staffUser
         $this->actingAs($staffUser, 'sanctum');
 
@@ -218,7 +229,7 @@ class DocumentManagementTest extends TestCase
     {
         Storage::fake('private_encrypted');
 
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => 'admin']);
         $this->actingAs($user, 'sanctum');
 
         $project = Project::create([
@@ -250,6 +261,7 @@ class DocumentManagementTest extends TestCase
         $this->withHeader('Accept', 'application/json')
             ->postJson("/api/v1/documents/{$document->id}/versions", [
                 'file' => $newFile,
+                'version_number' => 'v2.0',
                 'description' => 'Versi 2',
             ])
             ->assertStatus(201);

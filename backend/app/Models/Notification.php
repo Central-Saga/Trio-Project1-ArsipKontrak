@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read Document $document
+ * @property-read User $recipient
+ */
 class Notification extends Model
 {
     use HasFactory;
@@ -19,10 +23,10 @@ class Notification extends Model
     ];
 
     protected $casts = [
-        'document_id'       => 'integer',
+        'document_id' => 'integer',
         'recipient_user_id' => 'integer',
-        'sent_at'           => 'datetime',
-        'read_at'           => 'datetime',
+        'sent_at' => 'datetime',
+        'read_at' => 'datetime',
     ];
 
     /**

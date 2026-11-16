@@ -2,28 +2,42 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTO\ActivityLogListQueryData;
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
-use Illuminate\Http\Request;
+use App\Http\Requests\IndexActivityLogRequest;
+use App\Http\Resources\ActivityLogResource;
+use App\Services\ActivityLogService;
 
 class ActivityLogController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(private ActivityLogService $activityLogService) {}
+
+    public function index(IndexActivityLogRequest $request)
     {
-        // Pastikan hanya admin yang bisa mengakses daftar log
         if ($request->user()->role !== 'admin') {
             return response()->json([
-                'message' => 'Hanya administrator yang dapat melihat log aktivitas.'
+                'success' => false,
+                'message' => 'Hanya administrator yang dapat melihat log aktivitas.',
+                'data' => null,
+                'errors' => null,
             ], 403);
         }
 
-        $logs = ActivityLog::with(['user', 'document'])
-            ->latest('created_at')
-            ->paginate(15);
+        $logs = $this->activityLogService->listLogs(
+            ActivityLogListQueryData::fromValidated($request->validated())
+        );
 
         return response()->json([
             'success' => true,
-            'data' => $logs
+            'data' => ActivityLogResource::collection(
+                $logs->items()
+            )->resolve($request),
+            'meta' => [
+                'current_page' => $logs->currentPage(),
+                'last_page' => $logs->lastPage(),
+                'per_page' => $logs->perPage(),
+                'total' => $logs->total(),
+            ],
         ]);
     }
 }

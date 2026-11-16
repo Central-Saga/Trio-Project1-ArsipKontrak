@@ -16,22 +16,30 @@ import {
   Users,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/apiError";
 import { DocumentItem } from "@/types/document";
 import DocumentStatsChart from "@/components/DocumentStatsChart";
 import DocumentStatusPieChart from "@/components/DocumentStatusPieChart";
 import UploadDocumentModal from "@/components/UploadDocumentModal";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { logout } from "@/lib/sessionClient";
 
-interface CurrentUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
+interface DashboardStatistics {
+  total_arsip: number;
+  total_kontrak: number;
+  total_mou: number;
+  dokumen_aktif: number;
+  inactive: number;
+  draft: number;
+  expired: number;
+  terminated: number;
 }
 
 export default function StatisticsPage() {
   const router = useRouter();
+  const { user } = useCurrentUser();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [statistics, setStatistics] = useState<DashboardStatistics | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -43,36 +51,109 @@ export default function StatisticsPage() {
   const fetchDocuments = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/documents");
-      const rawData = response.data;
-      const items = Array.isArray(rawData)
-        ? rawData
-        : Array.isArray(rawData?.data)
-          ? rawData.data
-          : Array.isArray(rawData?.data?.data)
-            ? rawData.data.data
-            : Array.isArray(rawData?.documents)
-              ? rawData.documents
-              : [];
-      setDocuments(items);
       setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat statistik arsip.");
+
+      const [documentsResponse, statisticsResponse, mouResponse] =
+        await Promise.all([
+          api.get("/documents", { params: { page: 1 } }),
+          api.get("/dashboard/statistics"),
+          api.get("/documents", {
+            params: { document_type: "mou", page: 1 },
+          }),
+        ]);
+
+      const extractItems = (payload: unknown): DocumentItem[] => {
+        if (Array.isArray(payload)) {
+          return payload as DocumentItem[];
+        }
+
+        if (payload && typeof payload === "object") {
+          const data = (payload as { data?: unknown }).data;
+
+          if (Array.isArray(data)) {
+            return data as DocumentItem[];
+          }
+
+          if (data && typeof data === "object") {
+            const nestedData = (data as { data?: unknown }).data;
+
+            if (Array.isArray(nestedData)) {
+              return nestedData as DocumentItem[];
+            }
+          }
+        }
+
+        return [];
+      };
+
+      const statisticsPayload = statisticsResponse.data;
+      const statisticsData = statisticsPayload?.data;
+
+      if (
+        statisticsPayload?.success !== true ||
+        !statisticsData ||
+        !Number.isFinite(Number(statisticsData.total_arsip)) ||
+        !Number.isFinite(Number(statisticsData.total_kontrak)) ||
+        !Number.isFinite(Number(statisticsData.dokumen_aktif))
+      ) {
+        throw new Error("Format statistik dari server tidak valid.");
+      }
+
+      const documentsPayload = documentsResponse.data;
+      const pageValue = Number(documentsPayload?.meta?.last_page ?? 1);
+      const lastPage =
+        Number.isFinite(pageValue) && pageValue >= 1
+          ? Math.floor(pageValue)
+          : 1;
+
+      // Kumpulkan semua halaman supaya grafik bulanan tidak hanya
+      // menghitung 15 dokumen pertama.
+      const allDocuments = extractItems(documentsPayload);
+
+      for (let startPage = 2; startPage <= lastPage; startPage += 5) {
+        const pageNumbers = Array.from(
+          { length: Math.min(5, lastPage - startPage + 1) },
+          (_, index) => startPage + index,
+        );
+
+        const pageResponses = await Promise.all(
+          pageNumbers.map((page) =>
+            api.get("/documents", { params: { page } }),
+          ),
+        );
+
+        pageResponses.forEach((response) => {
+          allDocuments.push(...extractItems(response.data));
+        });
+      }
+
+      const mouTotal = Number(mouResponse.data?.meta?.total);
+
+      if (!Number.isFinite(mouTotal) || mouTotal < 0) {
+        throw new Error("Metadata total MoU dari server tidak valid.");
+      }
+
+      setDocuments(allDocuments);
+      setStatistics({
+        total_arsip: Number(statisticsData.total_arsip),
+        total_kontrak: Number(statisticsData.total_kontrak),
+        total_mou: mouTotal,
+        dokumen_aktif: Number(statisticsData.dokumen_aktif),
+        inactive: Number(statisticsData.inactive ?? 0),
+        draft: Number(statisticsData.draft ?? 0),
+        expired: Number(statisticsData.expired ?? 0),
+        terminated: Number(statisticsData.terminated ?? 0),
+      });
+      setError(null);
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, "Gagal memuat statistik arsip."));
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const storedUser =
-      localStorage.getItem("user_data") || localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        setUser(null);
-      }
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDocuments();
   }, [fetchDocuments]);
 
@@ -102,38 +183,17 @@ export default function StatisticsPage() {
   }, [user]);
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-    } catch {
-      // Tetap bersihkan sesi lokal jika request logout gagal.
-    } finally {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("user_data");
-      router.replace("/login");
-    }
+    await logout();
+    router.replace("/login");
   };
 
-  const totalArsip = documents.length;
-  const activeCount = documents.filter(
-    (document) => document.status.toLowerCase() === "active",
-  ).length;
-  const contractCount = documents.filter(
-    (document) => document.document_type.toLowerCase() === "contract",
-  ).length;
-  const mouCount = documents.filter(
-    (document) => document.document_type.toLowerCase() === "mou",
-  ).length;
-  const expiredCount = documents.filter(
-    (document) => document.status.toLowerCase() === "expired",
-  ).length;
-  const draftCount = documents.filter(
-    (document) => document.status.toLowerCase() === "draft",
-  ).length;
-  const terminatedCount = documents.filter(
-    (document) => document.status.toLowerCase() === "terminated",
-  ).length;
+  const totalArsip = statistics?.total_arsip ?? 0;
+  const activeCount = statistics?.dokumen_aktif ?? 0;
+  const contractCount = statistics?.total_kontrak ?? 0;
+  const mouCount = statistics?.total_mou ?? 0;
+  const expiredCount = statistics?.expired ?? 0;
+  const draftCount = statistics?.draft ?? 0;
+  const terminatedCount = statistics?.terminated ?? 0;
 
   const cards = [
     {
@@ -420,7 +480,14 @@ export default function StatisticsPage() {
               </div>
             ) : error ? (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center text-sm text-rose-600">
-                {error}
+                <p>{error}</p>
+                <button
+                  type="button"
+                  onClick={() => void fetchDocuments()}
+                  className="mt-4 rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  Coba lagi
+                </button>
               </div>
             ) : (
               <>

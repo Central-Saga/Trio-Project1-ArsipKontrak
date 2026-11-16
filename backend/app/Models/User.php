@@ -2,18 +2,27 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * @property-read Carbon|null $email_verified_at
+ */
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
+     *
+     * Kolom otorisasi (role/status) sengaja tidak fillable. Peran pengguna
+     * hanya boleh diubah lewat alur yang sudah diotorisasi, misalnya
+     * UserService saat admin membuat pengguna baru.
      *
      * @var list<string>
      */
@@ -21,7 +30,6 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
     ];
 
     /**

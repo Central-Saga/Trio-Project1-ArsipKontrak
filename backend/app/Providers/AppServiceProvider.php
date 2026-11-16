@@ -2,17 +2,50 @@
 
 namespace App\Providers;
 
-use Illuminate\Database\Eloquent\Model; // <-- Tambahkan import ini di atas
+use App\Models\Document;
+use App\Models\User;
+use App\Policies\DocumentPolicy;
+use App\Policies\UserPolicy;
+use App\Repositories\Contracts\ActivityLogRepositoryInterface;
+use App\Repositories\Contracts\DocumentRepositoryInterface;
+use App\Repositories\Contracts\DocumentVersionRepositoryInterface;
+use App\Repositories\Contracts\NotificationRepositoryInterface;
+use App\Repositories\Contracts\ProjectRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Eloquent\ActivityLogRepository;
+use App\Repositories\Eloquent\DocumentRepository;
+use App\Repositories\Eloquent\DocumentVersionRepository;
+use App\Repositories\Eloquent\NotificationRepository;
+use App\Repositories\Eloquent\ProjectRepository;
+use App\Repositories\Eloquent\UserRepository;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
+     * Pemetaan kontrak repository ke implementasi Eloquent.
+     *
+     * @var array<class-string, class-string>
+     */
+    public array $bindings = [
+        ActivityLogRepositoryInterface::class => ActivityLogRepository::class,
+        DocumentRepositoryInterface::class => DocumentRepository::class,
+        DocumentVersionRepositoryInterface::class => DocumentVersionRepository::class,
+        NotificationRepositoryInterface::class => NotificationRepository::class,
+        ProjectRepositoryInterface::class => ProjectRepository::class,
+        UserRepositoryInterface::class => UserRepository::class,
+    ];
+
+    /**
      * Register any application services.
      */
     public function register(): void
     {
-        //
+        foreach ($this->bindings as $abstract => $concrete) {
+            $this->app->bind($abstract, $concrete);
+        }
     }
 
     /**
@@ -20,7 +53,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Mengaktifkan pencegahan lazy loading (aktif otomatis di luar mode production)
+        Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+
+        // Mencegah lazy loading di lingkungan non-production.
         Model::preventLazyLoading(! app()->isProduction());
     }
 }

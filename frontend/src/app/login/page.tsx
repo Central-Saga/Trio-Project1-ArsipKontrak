@@ -1,9 +1,12 @@
 "use client";
 
+import axios from "axios";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Lock, Mail, Eye, EyeOff } from "lucide-react";
-import api from "@/lib/api";
+import { login } from "@/lib/sessionClient";
+import { getSafeRedirectPath } from "@/lib/safeRedirect";
+import { AUTH_SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/sessionMessages";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,24 +22,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await api.post("/login", { email, password });
-      const data = response.data;
+      const user = await login(email, password);
 
-      const token = data.token || data.access_token;
-      const user = data.user;
-
-      if (token) {
-        localStorage.setItem("token", token);
-        localStorage.setItem("auth_token", token);
-      }
-      if (user) {
-        localStorage.setItem("user", JSON.stringify(user));
-        localStorage.setItem("user_data", JSON.stringify(user));
+      if (!user) {
+        throw new Error("Data pengguna tidak tersedia. Silakan coba masuk lagi.");
       }
 
-      router.push("/");
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Email atau kata sandi salah.");
+      const nextPath = new URLSearchParams(window.location.search).get(
+        "next",
+      );
+      router.replace(getSafeRedirectPath(nextPath));
+      router.refresh();
+    } catch (err: unknown) {
+      if (axios.isAxiosError<{ message?: string }>(err)) {
+        const status = err.response?.status;
+
+        if (
+          !err.response ||
+          status === 404 ||
+          (status !== undefined && status >= 500)
+        ) {
+          setError(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
+        } else {
+          setError(err.response.data?.message || "Email atau kata sandi salah.");
+        }
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Email atau kata sandi salah.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -67,7 +83,10 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+              <label
+                htmlFor="email"
+                className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2"
+              >
                 Alamat Email
               </label>
               <div className="relative">
@@ -75,6 +94,7 @@ export default function LoginPage() {
                   <Mail className="h-5 w-5" />
                 </div>
                 <input
+                  id="email"
                   type="email"
                   required
                   value={email}
@@ -86,7 +106,10 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
+              <label
+                htmlFor="password"
+                className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2"
+              >
                 Kata Sandi
               </label>
               <div className="relative">
@@ -94,6 +117,7 @@ export default function LoginPage() {
                   <Lock className="h-5 w-5" />
                 </div>
                 <input
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
