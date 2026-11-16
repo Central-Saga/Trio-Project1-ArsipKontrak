@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { DELETE, GET, POST } from "./route";
 import { SESSION_COOKIE_NAME } from "@/lib/sessionCookie";
+import { AUTH_SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/sessionMessages";
 
 const TOKEN = "token-rahasia-uji";
 
@@ -136,6 +137,31 @@ describe("POST /api/session", () => {
     const response = await POST(loginRequest());
 
     expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      message: AUTH_SERVICE_UNAVAILABLE_MESSAGE,
+    });
+  });
+
+  it("hides backend details when login returns not found or server errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          jsonResponse({ message: "Internal database details" }, 500),
+        )
+        .mockResolvedValueOnce(jsonResponse({ message: "Not Found" }, 404)),
+    );
+
+    const serverError = await POST(loginRequest());
+    const notFound = await POST(loginRequest());
+
+    for (const response of [serverError, notFound]) {
+      expect(response.status).toBe(502);
+      await expect(response.json()).resolves.toMatchObject({
+        message: AUTH_SERVICE_UNAVAILABLE_MESSAGE,
+      });
+    }
   });
 });
 

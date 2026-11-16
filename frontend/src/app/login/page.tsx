@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Folder, Lock, Mail, Eye, EyeOff } from "lucide-react";
 import { login } from "@/lib/sessionClient";
 import { getSafeRedirectPath } from "@/lib/safeRedirect";
+import { AUTH_SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/sessionMessages";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,7 +35,17 @@ export default function LoginPage() {
       router.refresh();
     } catch (err: unknown) {
       if (axios.isAxiosError<{ message?: string }>(err)) {
-        setError(err.response?.data?.message || "Email atau kata sandi salah.");
+        const status = err.response?.status;
+
+        if (
+          !err.response ||
+          status === 404 ||
+          (status !== undefined && status >= 500)
+        ) {
+          setError(AUTH_SERVICE_UNAVAILABLE_MESSAGE);
+        } else {
+          setError(err.response.data?.message || "Email atau kata sandi salah.");
+        }
       } else {
         setError(
           err instanceof Error
