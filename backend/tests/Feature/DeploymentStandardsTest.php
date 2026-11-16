@@ -38,4 +38,20 @@ class DeploymentStandardsTest extends TestCase
             'Aplikasi harus menunggu release job migrasi selesai.'
         );
     }
+
+    public function test_entrypoint_creates_storage_link_and_sets_permissions(): void
+    {
+        $entrypoint = File::get(base_path('docker-entrypoint.sh'));
+
+        $this->assertStringContainsString('storage:link', $entrypoint);
+        $this->assertStringContainsString('chown', $entrypoint);
+    }
+
+    public function test_ci_pipeline_includes_queue_restart_and_optimize(): void
+    {
+        $ci = File::get(base_path('../.github/workflows/ci.yml'));
+
+        $this->assertStringContainsString('queue:restart', $ci);
+        $this->assertStringContainsString('optimize', $ci);
+    }
 }

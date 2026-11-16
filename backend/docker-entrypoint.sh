@@ -21,7 +21,11 @@ fi
 
 php artisan config:clear
 
-chown -R www-data:www-data storage bootstrap/cache
+# Pasang symlink storage dan atur permission agar upload dokumen berjalan lancar
+php artisan storage:link --force || true
+
+chown -R www-data:www-data storage bootstrap/cache public/storage
+chmod -R 775 storage bootstrap/cache
 
 # Migrasi dijalankan oleh service rilis terpisah (lihat compose.yaml),
 # bukan oleh setiap replika aplikasi.
