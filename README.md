@@ -53,11 +53,9 @@ Pastikan Docker sedang berjalan sebelum melanjutkan.
 Jika belum memiliki source code, clone repository dari GitHub:
 
 ```bash
-git clone <URL_REPOSITORY>
-cd arsip-kontrak-mou
+git clone https://github.com/Central-Saga/Trio-Project1-ArsipKontrak.git
+cd Trio-Project1-ArsipKontrak
 ```
-
-Ganti `<URL_REPOSITORY>` dengan URL repository GitHub yang sebenarnya.
 
 Jika source code sudah tersedia di komputer, lanjutkan dari folder project tanpa melakukan clone ulang.
 
