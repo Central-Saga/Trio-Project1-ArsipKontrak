@@ -45,6 +45,32 @@ class AuthService
 
     public function logout(User $user): void
     {
-        $user->currentAccessToken()?->delete();
+        $token = $user->currentAccessToken();
+        if ($token) {
+            $token->delete();
+        } else {
+            $user->tokens()->delete();
+        }
+    }
+
+    public function changePassword(User $user, string $currentPassword, string $newPassword): void
+    {
+        if (! Hash::check($currentPassword, $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['Password saat ini tidak sesuai.'],
+            ]);
+        }
+
+        $user->password = Hash::make($newPassword);
+        $user->save();
+
+        // Cabut seluruh token agar seluruh sesi/token lama mati
+        $user->tokens()->delete();
+
+        $this->activityLogs->record(
+            $user,
+            'PASSWORD_CHANGE',
+            "Pengguna {$user->name} berhasil mengubah password akun."
+        );
     }
 }
