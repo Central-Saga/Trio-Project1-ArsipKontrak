@@ -18,6 +18,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Environment variables
+
+For local development, copy `.env.example` to `.env.local` from the `frontend` directory. The template documents all frontend-configurable environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `API_BASE_URL` | Server-only backend URL used by the BFF. Defaults to `http://127.0.0.1:8000/api/v1`; Docker Compose sets it to `http://app:8000/api/v1`. |
+| `NEXT_PUBLIC_API_BASE_URL` | Legacy fallback if `API_BASE_URL` is unset. `NEXT_PUBLIC_` values are exposed to browser code; prefer `API_BASE_URL` and never put credentials here. |
+| `NEXT_PUBLIC_APP_URL` | Public origin used to build page metadata. Defaults to `http://localhost:3000`. |
+
+`NODE_ENV` is managed by Next.js (`development` for `next dev`, `production` for builds and production runtime); do not set it manually.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
