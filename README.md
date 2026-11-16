@@ -163,6 +163,22 @@ docker compose logs --tail=100 frontend
 docker compose exec app php artisan migrate:status
 ```
 
+### Jadwal pemeriksaan dokumen kedaluwarsa
+
+Laravel menjalankan command `documents:check-expiry` satu kali sehari. Command ini memperbarui status dokumen dan membuat notifikasi H-30, H-7, atau kedaluwarsa secara idempotent.
+
+Container `app` tidak menjalankan scheduler secara otomatis. Untuk deployment Docker, panggil Laravel Scheduler setiap menit dari cron pada host:
+
+```cron
+* * * * * cd /path/to/arsip-kontrak-mou && docker compose exec -T app php artisan schedule:run >> /dev/null 2>&1
+```
+
+Laravel hanya mengeksekusi pemeriksaan expiry pada jadwal hariannya. Untuk menjalankan pemeriksaan secara manual:
+
+```bash
+docker compose exec app php artisan documents:check-expiry
+```
+
 ### Cache dan Redis
 
 Docker Compose menjalankan layanan `redis` dengan healthcheck. Backend memakai driver cache `failover`: Redis sebagai penyimpanan utama dan database sebagai cadangan. Jika Redis berhenti, request tetap dilayani dengan cache database (fail-open), lalu kembali memakai Redis saat layanan tersedia lagi.
