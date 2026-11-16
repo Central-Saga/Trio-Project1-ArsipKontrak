@@ -148,6 +148,14 @@ class DocumentUploadTest extends TestCase
             ->getJson("/api/v1/documents/{$document->id}");
 
         $response->assertStatus(403);
+
+        $this->actingAs($viewerUser)
+            ->getJson("/api/v1/documents/{$document->id}/preview")
+            ->assertStatus(403);
+
+        $this->actingAs($viewerUser)
+            ->getJson("/api/v1/documents/{$document->id}/versions")
+            ->assertStatus(403);
     }
 
     public function test_file_sha256_checksum_is_correctly_calculated_and_stored(): void

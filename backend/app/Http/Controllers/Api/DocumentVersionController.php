@@ -8,6 +8,7 @@ use App\Http\Resources\DocumentVersionResource;
 use App\Models\Document;
 use App\Models\DocumentVersion;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -19,6 +20,8 @@ class DocumentVersionController extends Controller
     public function index(string $documentId)
     {
         $document = Document::findOrFail($documentId);
+        Gate::authorize('view', $document);
+
         $versions = $document->versions()->with('uploader')->latest()->get();
 
         return DocumentVersionResource::collection($versions);

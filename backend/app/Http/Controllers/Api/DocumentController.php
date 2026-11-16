@@ -10,6 +10,7 @@ use App\Models\DocumentVersion;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -215,11 +216,12 @@ class DocumentController extends Controller
         }
     }
 
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
         $document = Document::with(['project', 'creator', 'versions.uploader'])->findOrFail($id);
+        Gate::authorize('view', $document);
 
-        $user = request()->user();
+        $user = $request->user();
         if ($user) {
             ActivityLog::record(
                 userId: $user->id,
@@ -240,9 +242,10 @@ class DocumentController extends Controller
 
     public function preview(Request $request, string $id)
     {
-        try {
-            $document = Document::with('versions')->findOrFail($id);
+        $document = Document::with('versions')->findOrFail($id);
+        Gate::authorize('view', $document);
 
+        try {
             $user = $request->user();
             if ($user) {
                 ActivityLog::record(
