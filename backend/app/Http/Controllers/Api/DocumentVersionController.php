@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreDocumentVersionRequest;
+use App\Http\Resources\DocumentVersionResource;
 use App\Models\Document;
 use App\Models\DocumentVersion;
-use App\Http\Resources\DocumentVersionResource;
-use App\Http\Requests\StoreDocumentVersionRequest;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DocumentVersionController extends Controller
 {
@@ -43,9 +43,9 @@ class DocumentVersionController extends Controller
 
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
         $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-        $payload = base64_encode($iv . $encryptedContent);
+        $payload = base64_encode($iv.$encryptedContent);
 
-        $path = 'documents/contracts/' . uniqid() . '.enc';
+        $path = 'documents/contracts/'.Str::uuid()->toString().'.enc';
         Storage::disk('private_encrypted')->put($path, $payload);
 
         $fileHash = hash_file('sha256', $file->getRealPath());
@@ -56,24 +56,24 @@ class DocumentVersionController extends Controller
             $document->versions()->update(['is_current' => false]);
 
             $version = DocumentVersion::create([
-                'document_id'    => $document->id,
-                'version_number' => $validated['version_number'] ?? 'v' . ($document->versions()->count() + 1) . '.0',
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => $validated['notes'] ?? null,
-                'uploaded_by'    => $request->user()->id,
+                'document_id' => $document->id,
+                'version_number' => $validated['version_number'] ?? 'v'.($document->versions()->count() + 1).'.0',
+                'file_path' => $path,
+                'file_name' => $originalName,
+                'file_size' => $file->getSize(),
+                'file_hash' => $fileHash,
+                'mime_type' => $file->getMimeType(),
+                'encrypted_at' => now(),
+                'is_current' => true,
+                'notes' => $validated['notes'] ?? null,
+                'uploaded_by' => $request->user()->id,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Versi baru berhasil diunggah dengan enkripsi penuh.',
-                'data'    => new DocumentVersionResource($version->load('uploader')),
+                'data' => new DocumentVersionResource($version->load('uploader')),
             ], 201);
 
         } catch (\Exception $e) {
@@ -81,9 +81,10 @@ class DocumentVersionController extends Controller
             if (Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
             }
+
             return response()->json([
                 'message' => 'Gagal mengunggah versi baru.',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -95,12 +96,12 @@ class DocumentVersionController extends Controller
     {
         $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
 
-        if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
+        if (! Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
         $encryptedPayload = base64_decode(Storage::disk('private_encrypted')->get($version->file_path));
-        
+
         $ivLength = openssl_cipher_iv_length('aes-256-cbc');
         $iv = substr($encryptedPayload, 0, $ivLength);
         $encryptedContent = substr($encryptedPayload, $ivLength);
@@ -116,16 +117,17 @@ class DocumentVersionController extends Controller
             echo $decryptedContent;
         }, $version->file_name);
     }
+
     public function preview(string $documentId, string $versionId)
     {
         $version = DocumentVersion::where('document_id', $documentId)->findOrFail($versionId);
 
-        if (!Storage::disk('private_encrypted')->exists($version->file_path)) {
+        if (! Storage::disk('private_encrypted')->exists($version->file_path)) {
             return response()->json(['message' => 'File fisik tidak ditemukan di server.'], 404);
         }
 
         $encryptedPayload = base64_decode(Storage::disk('private_encrypted')->get($version->file_path));
-        
+
         $ivLength = openssl_cipher_iv_length('aes-256-cbc');
         $iv = substr($encryptedPayload, 0, $ivLength);
         $encryptedContent = substr($encryptedPayload, $ivLength);
@@ -139,7 +141,7 @@ class DocumentVersionController extends Controller
 
         return response()->make($decryptedContent, 200, [
             'Content-Type' => $version->mime_type,
-            'Content-Disposition' => 'inline; filename="' . $version->file_name . '"'
+            'Content-Disposition' => 'inline; filename="'.$version->file_name.'"',
         ]);
     }
 }

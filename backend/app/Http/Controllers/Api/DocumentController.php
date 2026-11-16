@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\DocumentResource;
+use App\Models\ActivityLog;
 use App\Models\Document;
 use App\Models\DocumentVersion;
-use App\Http\Resources\DocumentResource;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
@@ -70,7 +72,7 @@ class DocumentController extends Controller
                 'expired' => $dokumenExpired,
                 'terminated' => $dokumenTerminated,
                 'distribution' => $statusDistribution,
-            ]
+            ],
         ]);
     }
 
@@ -78,12 +80,12 @@ class DocumentController extends Controller
     {
         $query = Document::with(['project', 'creator', 'activeVersion']);
 
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('document_number', 'like', "%{$search}%")
-                  ->orWhere('document_name', 'like', "%{$search}%")
-                  ->orWhere('partner', 'like', "%{$search}%");
+                    ->orWhere('document_name', 'like', "%{$search}%")
+                    ->orWhere('partner', 'like', "%{$search}%");
             });
         }
 
@@ -130,19 +132,19 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
-        try {
-            $validated = $request->validate([
-                'document_number' => 'required|string|unique:documents,document_number',
-                'title'           => 'required|string|max:255',
-                'document_type'   => 'required|in:contract,mou,adendum,agreement,supporting',
-                'partner'         => 'required|string|max:255',
-                'document_date'   => 'required|date',
-                'expiry_date'     => 'required|date',
-                'description'     => 'nullable|string',
-                'project_id'      => 'nullable|integer|exists:projects,id',
-                'file'            => 'required|file|mimes:pdf|max:20480',
-            ]);
+        $validated = $request->validate([
+            'document_number' => 'required|string|unique:documents,document_number',
+            'title' => 'required|string|max:255',
+            'document_type' => 'required|in:contract,mou,adendum,agreement,supporting',
+            'partner' => 'required|string|max:255',
+            'document_date' => 'required|date',
+            'expiry_date' => 'required|date',
+            'description' => 'nullable|string',
+            'project_id' => 'nullable|integer|exists:projects,id',
+            'file' => 'required|file|mimes:pdf|max:20480',
+        ]);
 
+        try {
             DB::beginTransaction();
 
             $calculatedStatus = $this->determineStatus(
@@ -152,16 +154,16 @@ class DocumentController extends Controller
 
             $document = Document::create([
                 'document_number' => $validated['document_number'],
-                'document_name'   => $validated['title'],
-                'document_type'   => $validated['document_type'],
-                'partner'         => $validated['partner'],
-                'document_date'   => $validated['document_date'],
-                'effective_date'  => $validated['document_date'],
-                'expiry_date'     => $validated['expiry_date'],
-                'status'          => $calculatedStatus,
-                'description'     => $validated['description'] ?? null,
-                'project_id'      => $validated['project_id'] ?? 1,
-                'created_by'      => $request->user()->id,
+                'document_name' => $validated['title'],
+                'document_type' => $validated['document_type'],
+                'partner' => $validated['partner'],
+                'document_date' => $validated['document_date'],
+                'effective_date' => $validated['document_date'],
+                'expiry_date' => $validated['expiry_date'],
+                'status' => $calculatedStatus,
+                'description' => $validated['description'] ?? null,
+                'project_id' => $validated['project_id'] ?? 1,
+                'created_by' => $request->user()->id,
             ]);
 
             $file = $request->file('file');
@@ -175,39 +177,40 @@ class DocumentController extends Controller
 
             $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
             $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-            $payload = base64_encode($iv . $encryptedContent);
+            $payload = base64_encode($iv.$encryptedContent);
 
-            $path = 'documents/contracts/' . uniqid() . '.enc';
+            $path = 'documents/contracts/'.Str::uuid()->toString().'.enc';
             Storage::disk('private_encrypted')->put($path, $payload);
 
             $fileHash = hash_file('sha256', $file->getRealPath());
 
             DocumentVersion::create([
-                'document_id'    => $document->id,
+                'document_id' => $document->id,
                 'version_number' => 'v1.0',
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => 'Dokumen awal diunggah.',
-                'uploaded_by'    => $request->user()->id,
+                'file_path' => $path,
+                'file_name' => $originalName,
+                'file_size' => $file->getSize(),
+                'file_hash' => $fileHash,
+                'mime_type' => $file->getMimeType(),
+                'encrypted_at' => now(),
+                'is_current' => true,
+                'notes' => 'Dokumen awal diunggah.',
+                'uploaded_by' => $request->user()->id,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Dokumen kontrak/MoU berhasil diunggah dan diamankan dengan enkripsi penuh.',
-                'data'    => new DocumentResource($document->load(['project', 'creator', 'versions'])),
+                'data' => new DocumentResource($document->load(['project', 'creator', 'versions'])),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Gagal menyimpan dokumen.',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -218,7 +221,7 @@ class DocumentController extends Controller
 
         $user = request()->user();
         if ($user) {
-            \App\Models\ActivityLog::record(
+            ActivityLog::record(
                 userId: $user->id,
                 action: 'VIEW_DOCUMENT',
                 description: "Pengguna {$user->name} ({$user->role}) melihat detail dokumen: {$document->document_name}",
@@ -239,10 +242,10 @@ class DocumentController extends Controller
     {
         try {
             $document = Document::with('versions')->findOrFail($id);
-            
+
             $user = $request->user();
             if ($user) {
-                \App\Models\ActivityLog::record(
+                ActivityLog::record(
                     userId: $user->id,
                     action: 'PREVIEW_PDF',
                     description: "Pengguna {$user->name} ({$user->role}) membuka pratinjau dokumen: {$document->document_name}",
@@ -251,17 +254,17 @@ class DocumentController extends Controller
             }
 
             $versionId = $request->query('version_id');
-            
-            $version = $versionId 
-                ? $document->versions()->where('id', $versionId)->firstOrFail() 
+
+            $version = $versionId
+                ? $document->versions()->where('id', $versionId)->firstOrFail()
                 : $document->versions()->where('is_current', true)->first() ?? $document->versions()->latest()->first();
 
-            if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
+            if (! $version || ! Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
             $payload = Storage::disk('private_encrypted')->get($version->file_path);
-            
+
             $encryptionKey = config('app.key');
             if (str_starts_with($encryptionKey, 'base64:')) {
                 $encryptionKey = base64_decode(substr($encryptionKey, 7));
@@ -282,11 +285,11 @@ class DocumentController extends Controller
 
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' . addslashes($safeFilename) . '"',
+                'Content-Disposition' => 'inline; filename="'.addslashes($safeFilename).'"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Gagal memuat pratinjau: ' . $e->getMessage()
+                'message' => 'Gagal memuat pratinjau: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -298,14 +301,14 @@ class DocumentController extends Controller
 
             if ($user && $user->role !== 'admin') {
                 return response()->json([
-                    'message' => 'Akses ditolak. Viewer tidak diizinkan mengunduh dokumen.'
+                    'message' => 'Akses ditolak. Viewer tidak diizinkan mengunduh dokumen.',
                 ], 403);
             }
 
             $document = Document::with('versions')->findOrFail($id);
 
             if ($user) {
-                \App\Models\ActivityLog::record(
+                ActivityLog::record(
                     userId: $user->id,
                     action: 'DOWNLOAD_DOCUMENT',
                     description: "Administrator {$user->name} mengunduh berkas dokumen: {$document->document_name}",
@@ -314,17 +317,17 @@ class DocumentController extends Controller
             }
 
             $versionId = $request->query('version_id');
-            
-            $version = $versionId 
-                ? $document->versions()->where('id', $versionId)->firstOrFail() 
+
+            $version = $versionId
+                ? $document->versions()->where('id', $versionId)->firstOrFail()
                 : $document->versions()->where('is_current', true)->first() ?? $document->versions()->latest()->first();
 
-            if (!$version || !Storage::disk('private_encrypted')->exists($version->file_path)) {
+            if (! $version || ! Storage::disk('private_encrypted')->exists($version->file_path)) {
                 return response()->json(['message' => 'Berkas fisik tidak ditemukan.'], 404);
             }
 
             $payload = Storage::disk('private_encrypted')->get($version->file_path);
-            
+
             $encryptionKey = config('app.key');
             if (str_starts_with($encryptionKey, 'base64:')) {
                 $encryptionKey = base64_decode(substr($encryptionKey, 7));
@@ -345,11 +348,11 @@ class DocumentController extends Controller
 
             return response($decryptedContent, 200, [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'attachment; filename="' . addslashes($safeFilename) . '"',
+                'Content-Disposition' => 'attachment; filename="'.addslashes($safeFilename).'"',
             ]);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Gagal mengunduh: ' . $e->getMessage()
+                'message' => 'Gagal mengunduh: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -360,8 +363,8 @@ class DocumentController extends Controller
 
         $validated = $request->validate([
             'version_number' => 'required|string|max:50',
-            'notes'          => 'nullable|string',
-            'file'           => 'required|file|mimes:pdf|max:20480',
+            'notes' => 'nullable|string',
+            'file' => 'required|file|mimes:pdf|max:20480',
         ]);
 
         $file = $request->file('file');
@@ -375,9 +378,9 @@ class DocumentController extends Controller
 
         $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length('aes-256-cbc'));
         $encryptedContent = openssl_encrypt($fileContent, 'aes-256-cbc', $encryptionKey, 0, $iv);
-        $payload = base64_encode($iv . $encryptedContent);
+        $payload = base64_encode($iv.$encryptedContent);
 
-        $path = 'documents/contracts/' . uniqid() . '.enc';
+        $path = 'documents/contracts/'.Str::uuid()->toString().'.enc';
         Storage::disk('private_encrypted')->put($path, $payload);
 
         $fileHash = hash_file('sha256', $file->getRealPath());
@@ -388,36 +391,36 @@ class DocumentController extends Controller
             $document->versions()->update(['is_current' => false]);
 
             $version = DocumentVersion::create([
-                'document_id'    => $document->id,
+                'document_id' => $document->id,
                 'version_number' => $validated['version_number'],
-                'file_path'      => $path,
-                'file_name'      => $originalName,
-                'file_size'      => $file->getSize(),
-                'file_hash'      => $fileHash,
-                'mime_type'      => $file->getMimeType(),
-                'encrypted_at'   => now(),
-                'is_current'     => true,
-                'notes'          => $validated['notes'] ?? 'Pembaruan versi dokumen.',
-                'uploaded_by'    => $request->user()->id,
+                'file_path' => $path,
+                'file_name' => $originalName,
+                'file_size' => $file->getSize(),
+                'file_hash' => $fileHash,
+                'mime_type' => $file->getMimeType(),
+                'encrypted_at' => now(),
+                'is_current' => true,
+                'notes' => $validated['notes'] ?? 'Pembaruan versi dokumen.',
+                'uploaded_by' => $request->user()->id,
             ]);
 
             DB::commit();
 
             return response()->json([
                 'message' => 'Versi baru dokumen berhasil diunggah.',
-                'data'    => new DocumentResource($document->load(['project', 'creator', 'versions']))
+                'data' => new DocumentResource($document->load(['project', 'creator', 'versions'])),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             if (Storage::disk('private_encrypted')->exists($path)) {
                 Storage::disk('private_encrypted')->delete($path);
             }
 
             return response()->json([
                 'message' => 'Gagal mengunggah versi baru.',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -427,24 +430,24 @@ class DocumentController extends Controller
         $document = Document::findOrFail($id);
 
         $validated = $request->validate([
-            'document_number' => 'sometimes|required|string|unique:documents,document_number,' . $document->id,
-            'document_name'   => 'sometimes|required|string|max:255',
-            'document_type'   => 'sometimes|required|in:contract,mou,addendum,other',
-            'partner'         => 'sometimes|required|string|max:255',
-            'document_date'   => 'sometimes|required|date',
-            'effective_date'  => 'sometimes|required|date',
-            'expiry_date'     => 'sometimes|required|date',
-            'status'          => 'sometimes|required|in:draft,active,expired,terminated',
-            'description'     => 'nullable|string',
-            'project_id'      => 'nullable|exists:projects,id',
+            'document_number' => 'sometimes|required|string|unique:documents,document_number,'.$document->id,
+            'document_name' => 'sometimes|required|string|max:255',
+            'document_type' => 'sometimes|required|in:contract,mou,addendum,other',
+            'partner' => 'sometimes|required|string|max:255',
+            'document_date' => 'sometimes|required|date',
+            'effective_date' => 'sometimes|required|date',
+            'expiry_date' => 'sometimes|required|date',
+            'status' => 'sometimes|required|in:draft,active,expired,terminated',
+            'description' => 'nullable|string',
+            'project_id' => 'nullable|exists:projects,id',
         ]);
 
         $startDate = $validated['document_date'] ?? $validated['effective_date'] ?? $document->document_date;
         $expiryDate = $validated['expiry_date'] ?? $document->expiry_date;
-        
+
         // Ambil status manual yang dikirim dari form edit
         $requestedStatus = $validated['status'] ?? $request->input('status') ?? $document->status;
-        
+
         // Evaluasi status dengan memprioritaskan pilihan manual pengguna saat update
         $validated['status'] = $this->determineStatus($startDate, $expiryDate, $requestedStatus);
 
@@ -452,7 +455,7 @@ class DocumentController extends Controller
 
         return response()->json([
             'message' => 'Metadata dokumen berhasil diperbarui.',
-            'data'    => new DocumentResource($document->load(['project', 'creator']))
+            'data' => new DocumentResource($document->load(['project', 'creator'])),
         ]);
     }
 
@@ -462,7 +465,7 @@ class DocumentController extends Controller
 
         if ($document->created_by !== $request->user()->id && $request->user()->role !== 'admin') {
             return response()->json([
-                'message' => 'Unauthorized action.'
+                'message' => 'Unauthorized action.',
             ], 403);
         }
 
@@ -480,14 +483,15 @@ class DocumentController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Dokumen dan seluruh riwayat versinya berhasil dihapus.'
+                'message' => 'Dokumen dan seluruh riwayat versinya berhasil dihapus.',
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Gagal menghapus dokumen.',
-                'error'   => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

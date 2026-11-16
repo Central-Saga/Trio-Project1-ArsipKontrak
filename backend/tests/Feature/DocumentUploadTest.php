@@ -16,6 +16,7 @@ class DocumentUploadTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Project $project;
 
     protected function setUp(): void
@@ -25,18 +26,18 @@ class DocumentUploadTest extends TestCase
         // 1. Mock user autentikasi
         $this->user = User::factory()->create([
             'email' => 'admin@arsipkontrak.local',
-            'role'=>'admin',
+            'role' => 'admin',
         ]);
 
         // 2. Project dummy
         $this->project = Project::create([
             'project_code' => 'PRJ-TEST-001',
             'project_name' => 'Pengembangan Sistem Arsip Digital',
-            'client'       => 'Internal Corporate',
-            'description'  => 'Deskripsi Uji Coba',
-            'start_date'   => '2026-01-01',
-            'end_date'     => '2026-12-31',
-            'status'       => 'active',
+            'client' => 'Internal Corporate',
+            'description' => 'Deskripsi Uji Coba',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-12-31',
+            'status' => 'active',
         ]);
     }
 
@@ -48,18 +49,18 @@ class DocumentUploadTest extends TestCase
         $file = UploadedFile::fake()->create('kontrak_kerjasama.pdf', 1024, 'application/pdf');
 
         $payload = [
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/TEST/2026/001',
-            'document_name'   => 'Perjanjian Kerjasama Pengadaan',
-            'document_type'   => 'contract',
-            'partner'         => 'PT Mitra Digital Prima',
-            'document_date'   => '2026-09-08',
-            'effective_date'  => '2026-09-10',
-            'expiry_date'     => '2027-09-10',
-            'status'          => 'active',
-            'description'     => 'Uji coba upload dokumen kontrak',
-            'file'            => $file,
-            'notes'           => 'Initial commit kontrak',
+            'title' => 'Perjanjian Kerjasama Pengadaan',
+            'document_type' => 'contract',
+            'partner' => 'PT Mitra Digital Prima',
+            'document_date' => '2026-09-08',
+            'effective_date' => '2026-09-10',
+            'expiry_date' => '2027-09-10',
+            'status' => 'active',
+            'description' => 'Uji coba upload dokumen kontrak',
+            'file' => $file,
+            'notes' => 'Initial commit kontrak',
         ];
 
         $response = $this->actingAs($this->user)
@@ -70,20 +71,25 @@ class DocumentUploadTest extends TestCase
 
         // Verifikasi entri database PostgreSQL
         $this->assertDatabaseHas('documents', [
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/TEST/2026/001',
-            'document_type'   => 'contract',
-            'status'          => 'active',
+            'document_type' => 'contract',
+            'status' => 'active',
         ]);
 
         $this->assertDatabaseHas('document_versions', [
             'version_number' => 'v1.0',
-            'is_current'     => false,
+            'is_current' => true,
         ]);
 
         // Verifikasi fisik file tersimpan di storage lokal
         $documentVersion = DocumentVersion::first();
         Storage::disk('private_encrypted')->assertExists($documentVersion->file_path);
+        $this->assertMatchesRegularExpression(
+            '#^documents/contracts/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.enc$#',
+            $documentVersion->file_path
+        );
+        $this->assertSame('kontrak_kerjasama.pdf', $documentVersion->file_name);
 
         // Verifikasi integritas hash SHA-256 (panjang 64 heksadesimal)
         $this->assertNotEmpty($documentVersion->file_hash);
@@ -97,15 +103,15 @@ class DocumentUploadTest extends TestCase
         $file = UploadedFile::fake()->create('script_berbahaya.exe', 500, 'application/x-msdownload');
 
         $payload = [
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/REJECT/001',
-            'document_name'   => 'Dokumen Salah Format',
-            'document_type'   => 'contract',
-            'partner'         => 'Vendor Anonim',
-            'document_date'   => '2026-09-08',
-            'effective_date'  => '2026-09-10',
-            'expiry_date'     => '2027-09-10',
-            'file'            => $file,
+            'title' => 'Dokumen Salah Format',
+            'document_type' => 'contract',
+            'partner' => 'Vendor Anonim',
+            'document_date' => '2026-09-08',
+            'effective_date' => '2026-09-10',
+            'expiry_date' => '2027-09-10',
+            'file' => $file,
         ];
 
         $response = $this->actingAs($this->user)
@@ -126,16 +132,16 @@ class DocumentUploadTest extends TestCase
         ]);
 
         $document = Document::create([
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/NDA/2026/999',
-            'document_name'   => 'Dokumen NDA Rahasia Perusahaan',
-            'document_type'   => 'contract',
-            'partner'         => 'PT Rahasia Bersama',
-            'document_date'   => '2026-09-08',
-            'effective_date'  => '2026-09-10',
-            'expiry_date'     => '2027-09-10',
-            'status'          => 'active',
-            'created_by'      => $this->user->id,
+            'document_name' => 'Dokumen NDA Rahasia Perusahaan',
+            'document_type' => 'contract',
+            'partner' => 'PT Rahasia Bersama',
+            'document_date' => '2026-09-08',
+            'effective_date' => '2026-09-10',
+            'expiry_date' => '2027-09-10',
+            'status' => 'active',
+            'created_by' => $this->user->id,
         ]);
 
         $response = $this->actingAs($viewerUser)
@@ -150,21 +156,21 @@ class DocumentUploadTest extends TestCase
         Storage::fake('private_encrypted');
 
         $file = UploadedFile::fake()->create('dokumen_hash.pdf', 1024, 'application/pdf');
-        
+
         // Hitung hash SHA-256 dari file uji lokal
         $expectedHash = hash_file('sha256', $file->getRealPath());
 
         $payload = [
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/HASH/2026/001',
-            'document_name'   => 'Dokumen Uji Hash SHA-256',
-            'document_type'   => 'contract',
-            'partner'         => 'PT Checksum Indonesia',
-            'document_date'   => '2026-09-08',
-            'effective_date'  => '2026-09-10',
-            'expiry_date'     => '2027-09-10',
-            'status'          => 'active',
-            'file'            => $file,
+            'title' => 'Dokumen Uji Hash SHA-256',
+            'document_type' => 'contract',
+            'partner' => 'PT Checksum Indonesia',
+            'document_date' => '2026-09-08',
+            'effective_date' => '2026-09-10',
+            'expiry_date' => '2027-09-10',
+            'status' => 'active',
+            'file' => $file,
         ];
 
         $response = $this->actingAs($this->user)
@@ -182,34 +188,35 @@ class DocumentUploadTest extends TestCase
     public function test_can_upload_new_version_and_updates_previous_version_current_flag(): void
     {
         Storage::fake('local');
+        Storage::fake('private_encrypted');
 
         // 1. Dokumen awal (memenuhi not-null constraint PostgreSQL)
         $document = Document::create([
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/VER/2026/002',
-            'document_name'   => 'Dokumen Multi Versi',
-            'document_type'   => 'mou',
-            'partner'         => 'PT Sinergi Bangsa',
-            'document_date'   => '2026-09-08',
-            'effective_date'  => '2026-09-10',
-            'expiry_date'     => '2027-09-10',
-            'status'          => 'draft',
-            'created_by'      => $this->user->id,
+            'document_name' => 'Dokumen Multi Versi',
+            'document_type' => 'mou',
+            'partner' => 'PT Sinergi Bangsa',
+            'document_date' => '2026-09-08',
+            'effective_date' => '2026-09-10',
+            'expiry_date' => '2027-09-10',
+            'status' => 'draft',
+            'created_by' => $this->user->id,
         ]);
 
         $v1File = UploadedFile::fake()->create('v1.pdf', 500, 'application/pdf');
         $v1Path = $v1File->store('documents/contracts', 'local');
 
         $v1 = DocumentVersion::create([
-            'document_id'    => $document->id,
+            'document_id' => $document->id,
             'version_number' => 'v1.0',
-            'file_name'      => 'v1.pdf',
-            'file_path'      => $v1Path,
-            'file_hash'      => hash_file('sha256', $v1File->getRealPath()),
-            'file_size'      => $v1File->getSize(),
-            'mime_type'      => 'application/pdf',
-            'is_current'     => false,
-            'uploaded_by'    => $this->user->id,
+            'file_name' => 'v1.pdf',
+            'file_path' => $v1Path,
+            'file_hash' => hash_file('sha256', $v1File->getRealPath()),
+            'file_size' => $v1File->getSize(),
+            'mime_type' => 'application/pdf',
+            'is_current' => false,
+            'uploaded_by' => $this->user->id,
         ]);
 
         // 2. Upload revisi baru
@@ -217,27 +224,36 @@ class DocumentUploadTest extends TestCase
 
         $response = $this->actingAs($this->user)
             ->postJson("/api/v1/documents/{$document->id}/versions", [
-                'file'           => $v2File,
+                'file' => $v2File,
                 'version_number' => 'v2.0',
-                'notes'          => 'Pembaruan klausul pasal 4',
+                'notes' => 'Pembaruan klausul pasal 4',
             ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('data.version_number', 'v2.0')
-            ->assertJsonPath('data.is_current', true);
+            ->assertJsonFragment([
+                'version_number' => 'v2.0',
+                'is_current' => true,
+            ]);
 
         // Verifikasi versi v1 diubah menjadi false
         $this->assertDatabaseHas('document_versions', [
-            'id'         => $v1->id,
+            'id' => $v1->id,
             'is_current' => false,
         ]);
 
         // Verifikasi versi v2 aktif (true)
         $this->assertDatabaseHas('document_versions', [
-            'document_id'    => $document->id,
+            'document_id' => $document->id,
             'version_number' => 'v2.0',
-            'is_current'     => true,
+            'is_current' => true,
         ]);
+
+        $v2 = $document->versions()->where('version_number', 'v2.0')->firstOrFail();
+        Storage::disk('private_encrypted')->assertExists($v2->file_path);
+        $this->assertMatchesRegularExpression(
+            '#^documents/contracts/[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.enc$#',
+            $v2->file_path
+        );
     }
 
     public function test_document_status_becomes_expired_when_effective_expiry_date_passes(): void
@@ -249,16 +265,16 @@ class DocumentUploadTest extends TestCase
         $effectiveDate = now()->subDays(30)->format('Y-m-d');
 
         $document = Document::create([
-            'project_id'      => $this->project->id,
+            'project_id' => $this->project->id,
             'document_number' => 'DOC/EXP/2026/001',
-            'document_name'   => 'Dokumen Expired Test',
-            'document_type'   => 'contract',
-            'partner'         => 'PT Masa Lalu',
-            'document_date'   => $effectiveDate,
-            'effective_date'  => $effectiveDate,
-            'expiry_date'     => $expiredDate,
-            'status'          => 'active', // Status awal aktif, nanti akan diubah/dicek oleh sistem menjadi expired
-            'created_by'      => $this->user->id,
+            'document_name' => 'Dokumen Expired Test',
+            'document_type' => 'contract',
+            'partner' => 'PT Masa Lalu',
+            'document_date' => $effectiveDate,
+            'effective_date' => $effectiveDate,
+            'expiry_date' => $expiredDate,
+            'status' => 'active', // Status awal aktif, nanti akan diubah/dicek oleh sistem menjadi expired
+            'created_by' => $this->user->id,
         ]);
 
         // Panggil endpoint atau jalankan perintah/job pengecekan status expired (sesuai implementasi backend proyekmu)
@@ -270,7 +286,7 @@ class DocumentUploadTest extends TestCase
             ->assertJsonPath('data.status', 'expired');
 
         $this->assertDatabaseHas('documents', [
-            'id'     => $document->id,
+            'id' => $document->id,
             'status' => 'expired',
         ]);
     }
