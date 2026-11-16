@@ -149,8 +149,29 @@ services:
       retries: 5
       start_period: 30s
 
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sistem_arsip}
+      POSTGRES_USER: ${POSTGRES_USER:-saga}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret123}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-7}
+    volumes:
+      - postgres_backup:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "0 2 * * * pg_dump -h db -U $$POSTGRES_USER $$POSTGRES_DB | gzip > /backups/backup-$$(date +\\%Y\\%m\\%d\\%H\\%M\\%S).sql.gz && find /backups -name 'backup-*.sql.gz' -mtime +$$BACKUP_RETENTION_DAYS -delete" > /etc/crontabs/root
+        crond -f -l 2
+
 volumes:
   postgres_data:
+    driver: local
+  postgres_backup:
     driver: local
   redis_data:
     driver: local

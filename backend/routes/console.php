@@ -8,6 +8,11 @@ Schedule::command('documents:check-expiry')
     ->daily()
     ->withoutOverlapping();
 
+// Backup database harian dan retensi 7 hari
+Schedule::command('db:backup --retention=7')
+    ->dailyAt('02:00')
+    ->withoutOverlapping();
+
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
