@@ -5,6 +5,7 @@ import {
   getSessionCookieOptions,
   isSameOriginRequest,
 } from "@/lib/sessionCookie";
+import { AUTH_SERVICE_UNAVAILABLE_MESSAGE } from "@/lib/sessionMessages";
 
 export const dynamic = "force-dynamic";
 
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
       cache: "no-store",
     });
   } catch {
-    return errorResponse("Tidak dapat terhubung ke server autentikasi.", 502);
+    return errorResponse(AUTH_SERVICE_UNAVAILABLE_MESSAGE, 502);
   }
 
   const payload = (await backendResponse.json().catch(() => null)) as
@@ -101,6 +102,10 @@ export async function POST(request: Request) {
     | null;
 
   if (!backendResponse.ok) {
+    if (backendResponse.status === 404 || backendResponse.status >= 500) {
+      return errorResponse(AUTH_SERVICE_UNAVAILABLE_MESSAGE, 502);
+    }
+
     return errorResponse(
       extractBackendMessage(payload, "Email atau kata sandi salah."),
       backendResponse.status,
