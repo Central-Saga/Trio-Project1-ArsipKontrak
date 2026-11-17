@@ -56,7 +56,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Document::class, DocumentPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
 
-        // Mencegah lazy loading di lingkungan non-production.
-        Model::preventLazyLoading(! app()->isProduction());
+        // Mencegah lazy loading dan silently discarding attributes di lingkungan non-production.
+        if (! app()->isProduction()) {
+            Model::preventLazyLoading();
+            Model::preventSilentlyDiscardingAttributes();
+        }
     }
 }
