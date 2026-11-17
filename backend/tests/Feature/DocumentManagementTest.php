@@ -297,7 +297,6 @@ class DocumentManagementTest extends TestCase
             'expiry_date' => '2027-09-14',
             'status' => 'active',
             'description' => 'Akan dihapus soft delete',
-            'file_path' => $filePath,
             'created_by' => $user->id,
         ]);
 
