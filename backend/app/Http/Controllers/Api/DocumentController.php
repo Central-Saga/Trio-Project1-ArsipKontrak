@@ -123,7 +123,7 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(string $id, \Illuminate\Http\Request $request)
     {
         $document = $this->documents->findWithRelations($id, ['versions']);
 
