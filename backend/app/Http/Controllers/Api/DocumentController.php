@@ -12,8 +12,10 @@ use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Resources\DocumentMetadataResource;
 use App\Http\Resources\DocumentResource;
 use App\Models\Document;
+use App\Models\User;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Services\DocumentService;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 
@@ -123,13 +125,15 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function destroy(string $id, \Illuminate\Http\Request $request)
+    public function destroy(string $id, Request $request)
     {
         $document = $this->documents->findWithRelations($id, ['versions']);
 
         Gate::authorize('delete', $document);
         try {
-            $this->documentService->deleteDocument($document, $request->user());
+            /** @var User $user */
+            $user = $request->user();
+            $this->documentService->deleteDocument($document, $user);
 
             return response()->json([
                 'success' => true,
