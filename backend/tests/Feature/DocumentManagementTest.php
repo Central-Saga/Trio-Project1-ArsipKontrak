@@ -24,7 +24,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/001',
             'project_name' => 'Proyek Uji Coba',
-            'name' => 'Proyek Uji Coba',
             'client' => 'PT Klien Uji',
             'description' => 'Deskripsi proyek uji coba',
             'start_date' => '2026-09-14',
@@ -73,7 +72,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/002',
             'project_name' => 'Proyek Versi',
-            'name' => 'Proyek Versi',
             'client' => 'PT Klien Versi',
             'description' => 'Deskripsi proyek versi',
             'start_date' => '2026-09-14',
@@ -142,7 +140,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/003',
             'project_name' => 'Proyek Hash',
-            'name' => 'Proyek Hash',
             'client' => 'PT Klien Hash',
             'description' => 'Deskripsi proyek hash',
             'start_date' => '2026-09-14',
@@ -195,7 +192,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/004',
             'project_name' => 'Proyek RBAC',
-            'name' => 'Proyek RBAC',
             'client' => 'PT Klien RBAC',
             'description' => 'Deskripsi proyek RBAC',
             'start_date' => '2026-09-14',
@@ -235,7 +231,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/005',
             'project_name' => 'Proyek Increment',
-            'name' => 'Proyek Increment',
             'client' => 'PT Klien Increment',
             'description' => 'Deskripsi proyek increment',
             'start_date' => '2026-09-14',
@@ -282,7 +277,6 @@ class DocumentManagementTest extends TestCase
         $project = Project::create([
             'project_code' => 'PRJ/2026/006',
             'project_name' => 'Proyek SoftDelete',
-            'name' => 'Proyek SoftDelete',
             'client' => 'PT Klien SoftDelete',
             'description' => 'Deskripsi proyek softdelete',
             'start_date' => '2026-09-14',
@@ -303,7 +297,6 @@ class DocumentManagementTest extends TestCase
             'expiry_date' => '2027-09-14',
             'status' => 'active',
             'description' => 'Akan dihapus soft delete',
-            'file_path' => $filePath,
             'created_by' => $user->id,
         ]);
 

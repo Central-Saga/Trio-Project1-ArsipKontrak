@@ -13,10 +13,7 @@ class ClientContractTypeTest extends TestCase
 
     public function test_client_can_be_soft_deleted()
     {
-        $client = Client::create([
-            'name' => 'PT Klien Sejahtera',
-            'email' => 'klien@example.com',
-        ]);
+        $client = Client::create([]);
 
         $client->delete();
 
