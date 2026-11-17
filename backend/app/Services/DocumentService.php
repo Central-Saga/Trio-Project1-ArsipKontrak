@@ -76,7 +76,7 @@ class DocumentService
         return $this->documents->findForMetadata($id);
     }
 
-    public function updateDocument(Document $document, UpdateDocumentData $data): Document
+    public function updateDocument(Document $document, UpdateDocumentData $data, User $user): Document
     {
         $startDate = $data->documentDate ?? $data->effectiveDate ?? $document->document_date;
         $expiryDate = $data->expiryDate ?? $document->expiry_date;
@@ -87,14 +87,28 @@ class DocumentService
 
         $this->documents->update($document, $attributes);
 
+        $this->activityLogs->record(
+            $user,
+            'UPDATE_DOCUMENT',
+            "Pengguna {$user->name} memperbarui metadata dokumen: {$document->document_name}",
+            $document->id
+        );
+
         return $document->load(['project', 'creator']);
     }
 
-    public function deleteDocument(Document $document): void
+    public function deleteDocument(Document $document, User $user): void
     {
-        $this->documents->transaction(function () use ($document): void {
+        $this->documents->transaction(function () use ($document, $user): void {
             // Soft delete tidak menghapus file fisik atau riwayat versi.
             $this->documents->delete($document);
+
+            $this->activityLogs->record(
+                $user,
+                'DELETE_DOCUMENT',
+                "Pengguna {$user->name} menghapus dokumen: {$document->document_name}",
+                $document->id
+            );
         });
     }
 
@@ -152,7 +166,7 @@ class DocumentService
     public function createDocument(
         CreateDocumentData $data,
         UploadedFile $file,
-        int $userId
+        User $user
     ): Document {
         $storedPath = null;
 
@@ -160,7 +174,7 @@ class DocumentService
             return $this->documents->transaction(function () use (
                 $data,
                 $file,
-                $userId,
+                $user,
                 &$storedPath
             ) {
                 $document = $this->documents->create([
@@ -178,7 +192,7 @@ class DocumentService
                         $data->status
                     ),
                     'description' => $data->description,
-                    'created_by' => $userId,
+                    'created_by' => $user->id,
                 ]);
 
                 $encryptedFile = $this->encryptAndStore($file);
@@ -195,8 +209,15 @@ class DocumentService
                     'encrypted_at' => now(),
                     'is_current' => true,
                     'notes' => $data->notes,
-                    'uploaded_by' => $userId,
+                    'uploaded_by' => $user->id,
                 ]);
+
+                $this->activityLogs->record(
+                    $user,
+                    'CREATE_DOCUMENT',
+                    "Pengguna {$user->name} mengunggah dokumen baru: {$document->document_name}",
+                    $document->id
+                );
 
                 return $document;
             });

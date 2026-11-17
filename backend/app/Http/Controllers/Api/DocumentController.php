@@ -51,7 +51,7 @@ class DocumentController extends Controller
             $document = $this->documentService->createDocument(
                 CreateDocumentData::fromValidated($request->validated()),
                 $file,
-                (int) $request->user()->id
+                $request->user()
             );
 
             return response()->json([
@@ -112,7 +112,8 @@ class DocumentController extends Controller
 
         $document = $this->documentService->updateDocument(
             $document,
-            UpdateDocumentData::fromValidated($request->validated())
+            UpdateDocumentData::fromValidated($request->validated()),
+            $request->user()
         );
 
         return response()->json([
@@ -128,7 +129,7 @@ class DocumentController extends Controller
 
         Gate::authorize('delete', $document);
         try {
-            $this->documentService->deleteDocument($document);
+            $this->documentService->deleteDocument($document, $request->user());
 
             return response()->json([
                 'success' => true,
