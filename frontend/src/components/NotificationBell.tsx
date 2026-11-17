@@ -16,6 +16,11 @@ interface Notification {
   };
 }
 
+interface NotificationResponse {
+  notifications: Notification[];
+  unread_count: number;
+}
+
 export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -30,7 +35,7 @@ export default function NotificationBell() {
     }
 
     try {
-      const response = await api.get("/notifications");
+      const response = await api.get<NotificationResponse>("/notifications");
       const payload = response.data;
       const items = payload?.notifications;
 
@@ -39,7 +44,7 @@ export default function NotificationBell() {
       }
 
       setNotifications(items);
-      setUnreadCount(Number(payload?.unread_count) || 0);
+      setUnreadCount(payload?.unread_count || 0);
       setError(null);
     } catch (requestError: unknown) {
       setError(getApiErrorMessage(requestError, "Gagal memuat notifikasi."));

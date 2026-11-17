@@ -1,13 +1,18 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
+import { z } from "zod";
 import { SESSION_COOKIE_NAME, getApiBaseUrl } from "@/lib/sessionCookie";
 
-type MetadataResponse = {
-  data?: {
-    document_name?: unknown;
-  };
-  document_name?: unknown;
-};
+const MetadataResponseSchema = z.object({
+  data: z
+    .object({
+      document_name: z.unknown().optional(),
+    })
+    .optional(),
+  document_name: z.unknown().optional(),
+});
+
+type MetadataResponse = z.infer<typeof MetadataResponseSchema>;
 
 export type DocumentMetadataLookup =
   | {
@@ -59,7 +64,14 @@ export const getDocumentMetadataForRoute = cache(
         return { status: "unavailable" };
       }
 
-      const payload = (await response.json()) as MetadataResponse;
+      const rawJson = await response.json();
+      const parsed = MetadataResponseSchema.safeParse(rawJson);
+
+      if (!parsed.success) {
+        return { status: "unavailable" };
+      }
+
+      const payload = parsed.data;
       const name = payload.data?.document_name ?? payload.document_name;
 
       if (typeof name !== "string" || !name.trim()) {
