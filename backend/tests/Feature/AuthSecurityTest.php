@@ -32,7 +32,7 @@ class AuthSecurityTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v1/me')
             ->assertOk()
-            ->assertJsonPath('data.user.email', 'logout.test@example.com');
+            ->assertJsonPath('email', 'logout.test@example.com');
 
         $this->withToken($token)
             ->postJson('/api/v1/logout')
