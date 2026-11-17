@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Database\Seeders\UserSeeder;
+use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,18 +23,14 @@ class MassAssignmentTest extends TestCase
 
     public function test_role_cannot_be_mass_assigned(): void
     {
-        $user = User::create([
+        $this->expectException(MassAssignmentException::class);
+
+        User::create([
             'name' => 'Pengguna Tidak Sah',
             'email' => 'mass-assignment@example.test',
             'password' => 'password-rahasia',
             'role' => 'admin',
         ]);
-
-        $this->assertSame(
-            'viewer',
-            $user->fresh()->role,
-            'Role dari input mass assignment harus diabaikan.'
-        );
     }
 
     public function test_user_seeder_still_assigns_roles_explicitly(): void

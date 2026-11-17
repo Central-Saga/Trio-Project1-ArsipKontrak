@@ -27,6 +27,6 @@ class SecurityHeadersTest extends TestCase
         $response = $this->getJson('https://localhost/api/v1/documents/1/download');
 
         $response->assertUnauthorized()
-            ->assertHeader('Strict-Transport-Security', 'max-age=31536000');
+            ->assertHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
 }
