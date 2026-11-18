@@ -64,7 +64,7 @@ jobs:
           php-version: "8.4"
           extensions: mbstring, exif, pdo_pgsql, pgsql, zip, gd, pcntl
           tools: composer:v2
-          coverage: none
+          coverage: pcov
 
       - name: Cache Composer dependencies
         uses: actions/cache@v5
@@ -97,8 +97,11 @@ jobs:
       - name: Run Larastan
         run: composer analyse
 
-      - name: Run backend tests
-        run: php artisan test
+      - name: Run backend tests with coverage
+        run: php artisan test --coverage --min=60
+
+      - name: Run critical path tests with coverage
+        run: php artisan test --configuration=phpunit-critical.xml --coverage --min=80
 
       - name: Verify production optimization and queue restart
         run: |
