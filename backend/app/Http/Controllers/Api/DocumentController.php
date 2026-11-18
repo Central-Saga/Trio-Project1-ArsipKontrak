@@ -14,6 +14,7 @@ use App\Http\Resources\DocumentResource;
 use App\Models\Document;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Services\DocumentService;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 
@@ -51,7 +52,7 @@ class DocumentController extends Controller
             $document = $this->documentService->createDocument(
                 CreateDocumentData::fromValidated($request->validated()),
                 $file,
-                (int) $request->user()->id
+                $request->user()
             );
 
             return response()->json([
@@ -112,7 +113,8 @@ class DocumentController extends Controller
 
         $document = $this->documentService->updateDocument(
             $document,
-            UpdateDocumentData::fromValidated($request->validated())
+            UpdateDocumentData::fromValidated($request->validated()),
+            $request->user()
         );
 
         return response()->json([
@@ -122,13 +124,13 @@ class DocumentController extends Controller
         ]);
     }
 
-    public function destroy(string $id)
+    public function destroy(string $id, Request $request)
     {
         $document = $this->documents->findWithRelations($id, ['versions']);
 
         Gate::authorize('delete', $document);
         try {
-            $this->documentService->deleteDocument($document);
+            $this->documentService->deleteDocument($document, $request->user());
 
             return response()->json([
                 'success' => true,
@@ -142,9 +144,7 @@ class DocumentController extends Controller
                 throw $e;
             }
 
-            return response()->json([
-                'message' => 'Gagal menghapus dokumen.',
-            ], 500);
+            return response()->json(['message' => 'Gagal menghapus dokumen.'], 500);
         }
     }
 }
