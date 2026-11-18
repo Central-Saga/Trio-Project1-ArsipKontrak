@@ -12,7 +12,6 @@ use App\Http\Requests\UpdateDocumentRequest;
 use App\Http\Resources\DocumentMetadataResource;
 use App\Http\Resources\DocumentResource;
 use App\Models\Document;
-use App\Models\User;
 use App\Repositories\Contracts\DocumentRepositoryInterface;
 use App\Services\DocumentService;
 use Illuminate\Http\Request;
@@ -131,9 +130,7 @@ class DocumentController extends Controller
 
         Gate::authorize('delete', $document);
         try {
-            /** @var User $user */
-            $user = $request->user();
-            $this->documentService->deleteDocument($document, $user);
+            $this->documentService->deleteDocument($document, $request->user());
 
             return response()->json([
                 'success' => true,
@@ -147,9 +144,7 @@ class DocumentController extends Controller
                 throw $e;
             }
 
-            return response()->json([
-                'message' => 'Gagal menghapus dokumen.',
-            ], 500);
+            return response()->json(['message' => 'Gagal menghapus dokumen.'], 500);
         }
     }
 }
