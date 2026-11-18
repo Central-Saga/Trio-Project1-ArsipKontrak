@@ -32,12 +32,16 @@ class AuthSecurityTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/v1/me')
             ->assertOk()
-            ->assertJsonPath('data.email', 'logout.test@example.com');
+            ->assertJsonPath('email', 'logout.test@example.com');
+
+        $this->app['auth']->forgetGuards();
 
         $this->withToken($token)
             ->postJson('/api/v1/logout')
             ->assertOk()
             ->assertJsonPath('success', true);
+
+        $this->app['auth']->forgetGuards();
 
         $this->withToken($token)
             ->getJson('/api/v1/me')
@@ -58,6 +62,8 @@ class AuthSecurityTest extends TestCase
             ->getJson('/api/v1/me')
             ->assertOk();
 
+        $this->app['auth']->forgetGuards();
+
         $this->withToken($oldToken)
             ->postJson('/api/v1/change-password', [
                 'current_password' => 'old-password-123',
@@ -69,10 +75,17 @@ class AuthSecurityTest extends TestCase
         $user->refresh();
         $this->assertTrue(Hash::check('new-secret-password-456', $user->password));
 
-        // Token lama harus mati (unauthorized)
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+        ]);
+
+        $this->app['auth']->forgetGuards();
+
         $this->withToken($oldToken)
             ->getJson('/api/v1/me')
             ->assertUnauthorized();
+
+        $this->app['auth']->forgetGuards();
 
         $this->withToken($anotherOldToken)
             ->getJson('/api/v1/me')

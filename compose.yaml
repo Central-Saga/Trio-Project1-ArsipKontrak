@@ -107,6 +107,7 @@ services:
       RES_OPTIONS: "timeout:1 attempts:1"
     volumes:
       - laravel_runtime:/runtime
+      - ./compose.yaml:/var/compose.yaml:ro
     depends_on:
       db:
         condition: service_healthy
