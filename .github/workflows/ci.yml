@@ -101,7 +101,7 @@ jobs:
         run: php artisan test --coverage --min=60
 
       - name: Run critical path tests with coverage
-        run: php artisan test --configuration=phpunit-critical.xml --coverage --min=80
+        run: php artisan test -c phpunit-critical.xml --coverage --min=80
 
       - name: Verify production optimization and queue restart
         run: |
