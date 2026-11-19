@@ -28,11 +28,24 @@ export function getApiErrorMessage(
         return firstError[0];
       }
     }
-
+    
     if (error.message) {
       return error.message;
     }
   }
 
   return error instanceof Error && error.message ? error.message : fallback;
+}
+
+/**
+ * Ambil field-specific errors dari response API Laravel.
+ */
+export function getApiFieldErrors(error: unknown): Record<string, string[]> | null {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    const errors = error.response?.data?.errors;
+    if (errors && typeof errors === "object") {
+      return errors as Record<string, string[]>;
+    }
+  }
+  return null;
 }
