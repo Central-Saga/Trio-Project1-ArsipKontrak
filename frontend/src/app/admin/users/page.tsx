@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Trash2, UserPlus, Shield, User, Mail } from "lucide-react";
 import api from "@/lib/api";
-import { getApiErrorMessage } from "@/lib/apiError";
+import { getApiErrorMessage, getApiFieldErrors } from "@/lib/apiError";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 
 interface UserItem {
@@ -32,6 +32,7 @@ export default function AdminUsersPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
   // State untuk Modal Konfirmasi Hapus Kustom
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -86,6 +87,7 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (err: unknown) {
       setFormError(getApiErrorMessage(err, "Gagal menambahkan pengguna."));
+      setFieldErrors(getApiFieldErrors(err) || {});
     } finally {
       setSubmitting(false);
     }
@@ -281,6 +283,9 @@ export default function AdminUsersPage() {
                   placeholder="Contoh: Budi Santoso"
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none"
                 />
+                {fieldErrors.name && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.name[0]}</p>
+                )}
               </div>
 
               <div>
@@ -297,6 +302,9 @@ export default function AdminUsersPage() {
                   placeholder="budi@example.com"
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none"
                 />
+                {fieldErrors.email && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.email[0]}</p>
+                )}
               </div>
 
               <div>
@@ -314,6 +322,9 @@ export default function AdminUsersPage() {
                   placeholder="Minimal 6 karakter"
                   className="w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none"
                 />
+                {fieldErrors.password && (
+                  <p className="text-xs text-rose-500 mt-1">{fieldErrors.password[0]}</p>
+                )}
               </div>
 
               <div>
